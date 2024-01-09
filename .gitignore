@@ -6,3 +6,5 @@ typechain/
 *.code-workspace
 dist/
 coverage/
+.vscode/
+.idea/
