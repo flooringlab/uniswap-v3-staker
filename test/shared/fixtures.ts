@@ -95,7 +95,7 @@ export const uniswapFactoryFixture: Fixture<UniswapFactoryFixture> = async (wall
           NFTDescriptor: [
             {
               length: 20,
-              start: 1261,
+              start: 1577,
             },
           ],
         },
@@ -112,7 +112,7 @@ export const uniswapFactoryFixture: Fixture<UniswapFactoryFixture> = async (wall
       bytecode: linkedBytecode,
       abi: NonfungibleTokenPositionDescriptor.abi,
     },
-    [tokens[0].address],
+    [tokens[0].address, constants.HashZero],
   )
 
   const nftFactory = new ethers.ContractFactory(

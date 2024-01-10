@@ -20,7 +20,7 @@ import {
   UniswapV3Staker,
   IUniswapV3Pool,
   TestIncentiveId,
-} from '../../typechain'
+} from '../../typechain-v5'
 import { HelperTypes } from './types'
 import { ActorFixture } from '../shared/actors'
 import { mintPosition } from '../shared/fixtures'
@@ -117,7 +117,7 @@ export class HelperCommands {
         ...times,
         refundee: params.refundee || incentiveCreator.address,
       },
-      params.totalReward
+      params.totalReward,
     )
 
     return {
@@ -231,7 +231,7 @@ export class HelperCommands {
       incentiveResultToStakeAdapter(params.createIncentiveResult),
       params.tokenId,
 
-      maxGas
+      maxGas,
     )
 
     const unstakedAt = await blockTimestamp()
@@ -252,7 +252,7 @@ export class HelperCommands {
         amount1Min: 0,
         deadline: (await blockTimestamp()) + 1000,
       },
-      maxGas
+      maxGas,
     )
 
     const { tokensOwed0, tokensOwed1 } = await this.nft.connect(params.lp).positions(params.tokenId)
@@ -264,7 +264,7 @@ export class HelperCommands {
         amount0Max: tokensOwed0,
         amount1Max: tokensOwed1,
       },
-      maxGas
+      maxGas,
     )
 
     await this.nft.connect(params.lp).burn(params.tokenId, maxGas)
@@ -287,7 +287,7 @@ export class HelperCommands {
           rewardToken: rewardToken.address,
           pool: params.createIncentiveResult.poolAddress,
           refundee: params.createIncentiveResult.refundee,
-        })
+        }),
       )
     ).wait()
 
@@ -369,7 +369,7 @@ export class HelperCommands {
           amountIn: amountIn.div(10),
           amountOutMinimum: 0,
         },
-        maxGas
+        maxGas,
       )
 
       return await getCurrentTick(this.pool.connect(actor))
@@ -390,7 +390,7 @@ export class ERC20Helper {
     actor: Wallet,
     tokens: TestERC20 | Array<TestERC20>,
     balance: BigNumber,
-    spender?: string
+    spender?: string,
   ) => {
     for (let token of arrayWrap(tokens)) {
       await this.ensureBalance(actor, token, balance)

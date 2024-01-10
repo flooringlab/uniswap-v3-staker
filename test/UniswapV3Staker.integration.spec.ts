@@ -93,8 +93,8 @@ describe('integration', async () => {
           helpers.mintDepositStakeFlow({
             ...params,
             lp,
-          })
-        )
+          }),
+        ),
       )
 
       return {
@@ -117,7 +117,7 @@ describe('integration', async () => {
 
         // Sanity check: make sure we go past the incentive end time.
         expect(await blockTimestamp(), 'test setup: must be run after start time').to.be.gte(
-          createIncentiveResult.endTime
+          createIncentiveResult.endTime,
         )
 
         // Everyone pulls their liquidity at the same time
@@ -127,8 +127,8 @@ describe('integration', async () => {
               lp,
               tokenId,
               createIncentiveResult,
-            })
-          )
+            }),
+          ),
         )
         const rewardsEarned = bnSum(unstakes.map((o) => o.balance))
         log.debug('Total rewards ', rewardsEarned.toString())
@@ -211,7 +211,7 @@ describe('integration', async () => {
             lp: lpUser0,
             tokenId: stakes[0].tokenId,
             createIncentiveResult: subject.createIncentiveResult,
-          })
+          }),
         )
 
         /*
@@ -233,8 +233,8 @@ describe('integration', async () => {
               lp,
               tokenId,
               createIncentiveResult,
-            })
-          )
+            }),
+          ),
         )
         unstakes.push(...otherUnstakes)
 
@@ -287,7 +287,7 @@ describe('integration', async () => {
             lpUser0,
             [token0, token1],
             amountsToStake[0],
-            subject.context.router.address
+            subject.context.router.address,
           )
 
           const restake = await helpers.mintDepositStakeFlow({
@@ -341,8 +341,8 @@ describe('integration', async () => {
                 lp,
                 tokenId,
                 createIncentiveResult,
-              })
-            )
+              }),
+            ),
           )
 
           expect(ratioE18(unstakes[2].balance, unstakes[3].balance)).to.eq('4.34')
@@ -373,7 +373,7 @@ describe('integration', async () => {
           lpUser3,
           [context.token0, context.token1],
           balanceDeposited,
-          context.nft.address
+          context.nft.address,
         )
 
         await mintPosition(context.nft.connect(lpUser3), {
@@ -398,8 +398,8 @@ describe('integration', async () => {
               lp,
               tokenId,
               createIncentiveResult,
-            })
-          )
+            }),
+          ),
         )
 
         /**
@@ -422,7 +422,7 @@ describe('integration', async () => {
         expect(rewardsEarned).to.be.closeTo(
           // @ts-ignore
           firstHalfRewards.add(secondHalfRewards),
-          BNe(5, 16)
+          BNe(5, 16),
         )
 
         // await Time.set(createIncentiveResult.endTime + 1)
@@ -517,8 +517,8 @@ describe('integration', async () => {
             ticks: p.ticks,
             amountsToStake: p.amounts,
             createIncentiveResult,
-          })
-        )
+          }),
+        ),
       )
 
       const trader = actors.traderUser0()
@@ -571,7 +571,7 @@ describe('integration', async () => {
           lp: stakes[2].lp,
           tokenId: stakes[2].tokenId,
           createIncentiveResult,
-        })
+        }),
       ).to.be.reverted
     })
   })

@@ -7,7 +7,7 @@ import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
-import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
+import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
 
 /// @title Uniswap V3 Staker Interface
 /// @notice Allows staking nonfungible liquidity tokens in exchange for reward tokens
@@ -42,39 +42,28 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @return totalRewardUnclaimed The amount of reward token not yet claimed by users
     /// @return totalSecondsClaimedX128 Total liquidity-seconds claimed, represented as a UQ32.128
     /// @return numberOfStakes The count of deposits that are currently staked for the incentive
-    function incentives(bytes32 incentiveId)
-        external
-        view
-        returns (
-            uint256 totalRewardUnclaimed,
-            uint160 totalSecondsClaimedX128,
-            uint96 numberOfStakes
-        );
+    function incentives(
+        bytes32 incentiveId
+    ) external view returns (uint256 totalRewardUnclaimed, uint160 totalSecondsClaimedX128, uint96 numberOfStakes);
 
     /// @notice Returns information about a deposited NFT
     /// @return owner The owner of the deposited NFT
     /// @return numberOfStakes Counter of how many incentives for which the liquidity is staked
     /// @return tickLower The lower tick of the range
     /// @return tickUpper The upper tick of the range
-    function deposits(uint256 tokenId)
-        external
-        view
-        returns (
-            address owner,
-            uint48 numberOfStakes,
-            int24 tickLower,
-            int24 tickUpper
-        );
+    function deposits(
+        uint256 tokenId
+    ) external view returns (address owner, uint48 numberOfStakes, int24 tickLower, int24 tickUpper);
 
     /// @notice Returns information about a staked liquidity NFT
     /// @param tokenId The ID of the staked token
     /// @param incentiveId The ID of the incentive for which the token is staked
     /// @return secondsPerLiquidityInsideInitialX128 secondsPerLiquidity represented as a UQ32.128
     /// @return liquidity The amount of liquidity in the NFT as of the last time the rewards were computed
-    function stakes(uint256 tokenId, bytes32 incentiveId)
-        external
-        view
-        returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity);
+    function stakes(
+        uint256 tokenId,
+        bytes32 incentiveId
+    ) external view returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity);
 
     /// @notice Returns amounts of reward tokens owed to a given address according to the last time all stakes were updated
     /// @param rewardToken The token for which to check rewards
@@ -101,11 +90,7 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param tokenId The unique identifier of an Uniswap V3 LP token
     /// @param to The address where the LP token will be sent
     /// @param data An optional data array that will be passed along to the `to` address via the NFT safeTransferFrom
-    function withdrawToken(
-        uint256 tokenId,
-        address to,
-        bytes memory data
-    ) external;
+    function withdrawToken(uint256 tokenId, address to, bytes memory data) external;
 
     /// @notice Stakes a Uniswap V3 LP token
     /// @param key The key of the incentive for which to stake the NFT
@@ -132,9 +117,10 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param key The key of the incentive
     /// @param tokenId The ID of the token
     /// @return reward The reward accrued to the NFT for the given incentive thus far
-    function getRewardInfo(IncentiveKey memory key, uint256 tokenId)
-        external
-        returns (uint256 reward, uint160 secondsInsideX128);
+    function getRewardInfo(
+        IncentiveKey memory key,
+        uint256 tokenId
+    ) external returns (uint256 reward, uint160 secondsInsideX128);
 
     /// @notice Event emitted when a liquidity mining incentive has been created
     /// @param rewardToken The token being distributed as a reward

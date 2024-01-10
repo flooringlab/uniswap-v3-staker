@@ -47,7 +47,7 @@ export const encodePriceSqrt = (reserve1: BigNumberish, reserve0: BigNumberish):
       .sqrt()
       .multipliedBy(new bn(2).pow(96))
       .integerValue(3)
-      .toString()
+      .toString(),
   )
 }
 
@@ -74,7 +74,7 @@ export async function snapshotGasCost(
     | Promise<BigNumber>
     | BigNumber
     | Contract
-    | Promise<Contract>
+    | Promise<Contract>,
 ): Promise<void> {
   const resolved = await x
   if ('deployTransaction' in resolved) {

@@ -1,5 +1,5 @@
 import { BigNumber, Wallet } from 'ethers'
-import { TestERC20 } from '../../typechain'
+import { TestERC20 } from '../../typechain-v5'
 import { FeeAmount } from '../shared'
 
 export module HelperTypes {

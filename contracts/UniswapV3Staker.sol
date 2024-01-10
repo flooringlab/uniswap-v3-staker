@@ -12,9 +12,9 @@ import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
 
-import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
+import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
 
-import "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
+import '@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol';
 
 /// @title Uniswap V3 canonical staking interface
 contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
@@ -60,12 +60,10 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
     mapping(uint256 => mapping(bytes32 => Stake)) private _stakes;
 
     /// @inheritdoc IUniswapV3Staker
-    function stakes(uint256 tokenId, bytes32 incentiveId)
-        public
-        view
-        override
-        returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity)
-    {
+    function stakes(
+        uint256 tokenId,
+        bytes32 incentiveId
+    ) public view override returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) {
         Stake storage stake = _stakes[tokenId][incentiveId];
         secondsPerLiquidityInsideInitialX128 = stake.secondsPerLiquidityInsideInitialX128;
         liquidity = stake.liquidityNoOverflow;
@@ -186,11 +184,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function withdrawToken(
-        uint256 tokenId,
-        address to,
-        bytes memory data
-    ) external override {
+    function withdrawToken(uint256 tokenId, address to, bytes memory data) external override {
         require(to != address(this), 'UniswapV3Staker::withdrawToken: cannot withdraw to staker');
         Deposit memory deposit = deposits[tokenId];
         require(deposit.numberOfStakes == 0, 'UniswapV3Staker::withdrawToken: cannot withdraw token while staked');
@@ -231,19 +225,20 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
         deposits[tokenId].numberOfStakes--;
         incentive.numberOfStakes--;
 
-        (, uint160 secondsPerLiquidityInsideX128, ) =
-            key.pool.snapshotCumulativesInside(deposit.tickLower, deposit.tickUpper);
-        (uint256 reward, uint160 secondsInsideX128) =
-            RewardMath.computeRewardAmount(
-                incentive.totalRewardUnclaimed,
-                incentive.totalSecondsClaimedX128,
-                key.startTime,
-                key.endTime,
-                liquidity,
-                secondsPerLiquidityInsideInitialX128,
-                secondsPerLiquidityInsideX128,
-                block.timestamp
-            );
+        (, uint160 secondsPerLiquidityInsideX128, ) = key.pool.snapshotCumulativesInside(
+            deposit.tickLower,
+            deposit.tickUpper
+        );
+        (uint256 reward, uint160 secondsInsideX128) = RewardMath.computeRewardAmount(
+            incentive.totalRewardUnclaimed,
+            incentive.totalSecondsClaimedX128,
+            key.startTime,
+            key.endTime,
+            liquidity,
+            secondsPerLiquidityInsideInitialX128,
+            secondsPerLiquidityInsideX128,
+            block.timestamp
+        );
 
         // if this overflows, e.g. after 2^32-1 full liquidity seconds have been claimed,
         // reward rate will fall drastically so it's safe
@@ -278,12 +273,10 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function getRewardInfo(IncentiveKey memory key, uint256 tokenId)
-        external
-        view
-        override
-        returns (uint256 reward, uint160 secondsInsideX128)
-    {
+    function getRewardInfo(
+        IncentiveKey memory key,
+        uint256 tokenId
+    ) external view override returns (uint256 reward, uint160 secondsInsideX128) {
         bytes32 incentiveId = IncentiveId.compute(key);
 
         (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
@@ -292,8 +285,10 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
         Deposit memory deposit = deposits[tokenId];
         Incentive memory incentive = incentives[incentiveId];
 
-        (, uint160 secondsPerLiquidityInsideX128, ) =
-            key.pool.snapshotCumulativesInside(deposit.tickLower, deposit.tickUpper);
+        (, uint160 secondsPerLiquidityInsideX128, ) = key.pool.snapshotCumulativesInside(
+            deposit.tickLower,
+            deposit.tickUpper
+        );
 
         (reward, secondsInsideX128) = RewardMath.computeRewardAmount(
             incentive.totalRewardUnclaimed,
@@ -323,8 +318,11 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
             'UniswapV3Staker::stakeToken: token already staked'
         );
 
-        (IUniswapV3Pool pool, int24 tickLower, int24 tickUpper, uint128 liquidity) =
-            NFTPositionInfo.getPositionInfo(factory, nonfungiblePositionManager, tokenId);
+        (IUniswapV3Pool pool, int24 tickLower, int24 tickUpper, uint128 liquidity) = NFTPositionInfo.getPositionInfo(
+            factory,
+            nonfungiblePositionManager,
+            tokenId
+        );
 
         require(pool == key.pool, 'UniswapV3Staker::stakeToken: token pool is not the incentive pool');
         require(liquidity > 0, 'UniswapV3Staker::stakeToken: cannot stake token with 0 liquidity');

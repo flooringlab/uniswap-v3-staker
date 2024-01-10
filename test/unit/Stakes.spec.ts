@@ -608,14 +608,16 @@ describe('unit/Stakes', () => {
 
       it('you have not staked', async () => {
         await expect(subject(actors.lpUser2())).to.revertedWith(
-          'UniswapV3Staker::unstakeToken: only owner can withdraw token',
+          'UniswapV3Staker::unstakeToken: only owner can withdraw token before incentive end time',
         )
       })
 
       it('non-owner tries to unstake before the end time', async () => {
         const nonOwner = actors.lpUser2()
         await Time.setAndMine(timestamps.startTime + 100)
-        await expect(subject(nonOwner)).to.revertedWith('UniswapV3Staker::unstakeToken: only owner can withdraw token')
+        await expect(subject(nonOwner)).to.revertedWith(
+          'UniswapV3Staker::unstakeToken: only owner can withdraw token before incentive end time',
+        )
         expect(await blockTimestamp(), 'test setup: after end time').to.be.lt(timestamps.endTime)
       })
     })

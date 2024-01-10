@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
 /// @title Math for computing rewards
 /// @notice Allows computing rewards given some parameters of stakes and incentives
@@ -34,8 +34,8 @@ library RewardMath {
         // this operation is safe, as the difference cannot be greater than 1/stake.liquidity
         secondsInsideX128 = (secondsPerLiquidityInsideX128 - secondsPerLiquidityInsideInitialX128) * liquidity;
 
-        uint256 totalSecondsUnclaimedX128 =
-            ((Math.max(endTime, currentTime) - startTime) << 128) - totalSecondsClaimedX128;
+        uint256 totalSecondsUnclaimedX128 = ((Math.max(endTime, currentTime) - startTime) << 128) -
+            totalSecondsClaimedX128;
 
         reward = FullMath.mulDiv(totalRewardUnclaimed, secondsInsideX128, totalSecondsUnclaimedX128);
     }
