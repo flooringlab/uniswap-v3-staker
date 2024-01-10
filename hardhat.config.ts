@@ -97,8 +97,8 @@ const config: HardhatUserConfig = {
     runOnCompile: false,
   },
   typechain: {
-    outDir: "typechain-v6",
-    target: "ethers-v6",
+    outDir: 'typechain-v5',
+    target: 'ethers-v5',
   },
 }
 
