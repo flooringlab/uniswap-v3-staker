@@ -1,6 +1,6 @@
 import { constants } from 'ethers'
 import { TestContext, LoadFixtureFunction } from './types'
-import { TestERC20 } from '../typechain'
+import { TestERC20 } from '../typechain-v5'
 import {
   BigNumber,
   blockTimestamp,

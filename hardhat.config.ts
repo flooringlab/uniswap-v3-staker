@@ -75,12 +75,30 @@ const config: HardhatUserConfig = {
     },
   },
   solidity: {
-    compilers: [DEFAULT_COMPILER_SETTINGS],
+    compilers: [
+      DEFAULT_COMPILER_SETTINGS,
+      {
+        version: '0.8.23',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1_000_000,
+          },
+          metadata: {
+            bytecodeHash: 'none',
+          },
+        },
+      },
+    ],
   },
   contractSizer: {
     alphaSort: false,
     disambiguatePaths: true,
     runOnCompile: false,
+  },
+  typechain: {
+    outDir: "typechain-v6",
+    target: "ethers-v6",
   },
 }
 

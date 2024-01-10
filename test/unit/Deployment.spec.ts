@@ -1,6 +1,6 @@
 import { LoadFixtureFunction } from '../types'
 import { ethers } from 'hardhat'
-import { UniswapV3Staker } from '../../typechain'
+import { UniswapV3Staker } from '../../typechain-v5'
 import { uniswapFixture, UniswapFixtureType } from '../shared/fixtures'
 import { expect } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
@@ -24,7 +24,7 @@ describe('unit/Deployment', () => {
       context.factory.address,
       context.nft.address,
       2 ** 32,
-      2 ** 32
+      2 ** 32,
     )) as UniswapV3Staker
     expect(staker.address).to.be.a.string
   })
@@ -35,7 +35,7 @@ describe('unit/Deployment', () => {
       context.factory.address,
       context.nft.address,
       2 ** 32,
-      2 ** 32
+      2 ** 32,
     )) as UniswapV3Staker
 
     expect(await staker.factory()).to.equal(context.factory.address)

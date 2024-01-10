@@ -3,6 +3,8 @@ cache/
 crytic-export/
 node_modules/
 typechain/
+typechain-v5/
+typechain-v6/
 *.code-workspace
 dist/
 coverage/

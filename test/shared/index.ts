@@ -18,7 +18,7 @@ import { expect, use } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { jestSnapshotPlugin } from 'mocha-chai-jest-snapshot'
 
-import { IUniswapV3Pool, TestERC20 } from '../../typechain'
+import { IUniswapV3Pool, TestERC20 } from '../../typechain-v5'
 import { isArray, isString } from 'lodash'
 import { ethers } from 'hardhat'
 

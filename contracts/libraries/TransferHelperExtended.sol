@@ -2,11 +2,8 @@
 pragma solidity >=0.6.0;
 
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
-import '@openzeppelin/contracts/utils/Address.sol';
 
 library TransferHelperExtended {
-    using Address for address;
-
     /// @notice Transfers tokens from the targeted address to the given destination
     /// @notice Errors with 'STF' if transfer fails
     /// @param token The contract address of the token to be transferred
@@ -19,7 +16,7 @@ library TransferHelperExtended {
         address to,
         uint256 value
     ) internal {
-        require(token.isContract(), 'TransferHelperExtended::safeTransferFrom: call to non-contract');
+        require(token.code.length > 0, 'TransferHelperExtended::safeTransferFrom: call to non-contract');
         TransferHelper.safeTransferFrom(token, from, to, value);
     }
 
@@ -33,7 +30,7 @@ library TransferHelperExtended {
         address to,
         uint256 value
     ) internal {
-        require(token.isContract(), 'TransferHelperExtended::safeTransfer: call to non-contract');
+        require(token.code.length > 0, 'TransferHelperExtended::safeTransfer: call to non-contract');
         TransferHelper.safeTransfer(token, to, value);
     }
 }
