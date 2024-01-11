@@ -26,6 +26,7 @@ library RewardMath {
         uint128 liquidity,
         uint160 secondsPerLiquidityInsideInitialX128,
         uint160 secondsPerLiquidityInsideX128,
+        uint256 stakedSinceTime,
         uint256 currentTime
     ) internal pure returns (uint256 reward, uint160 secondsInsideX128) {
         // this should never be called before the start time

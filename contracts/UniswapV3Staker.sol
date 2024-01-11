@@ -15,9 +15,11 @@ import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
 
 import '@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
 /// @title Uniswap V3 canonical staking interface
-contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
+contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradeable, OwnableUpgradeable {
     /// @notice Represents a staking incentive
     struct Incentive {
         uint256 totalRewardUnclaimed;
@@ -38,6 +40,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
         uint160 secondsPerLiquidityInsideInitialX128;
         uint96 liquidityNoOverflow;
         uint128 liquidityIfOverflow;
+        uint32 stakedSince;
     }
 
     /// @inheritdoc IUniswapV3Staker
@@ -63,10 +66,11 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
     function stakes(
         uint256 tokenId,
         bytes32 incentiveId
-    ) public view override returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) {
+    ) public view override returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity, uint32 stakedSince) {
         Stake storage stake = _stakes[tokenId][incentiveId];
         secondsPerLiquidityInsideInitialX128 = stake.secondsPerLiquidityInsideInitialX128;
         liquidity = stake.liquidityNoOverflow;
+        stakedSince = stake.stakedSince;
         if (liquidity == type(uint96).max) {
             liquidity = stake.liquidityIfOverflow;
         }
@@ -90,6 +94,18 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
         nonfungiblePositionManager = _nonfungiblePositionManager;
         maxIncentiveStartLeadTime = _maxIncentiveStartLeadTime;
         maxIncentiveDuration = _maxIncentiveDuration;
+
+        _disableInitializers();
+    }
+
+    /// required by the OZ UUPS module
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    /// @dev just declare this as payable to reduce gas and bytecode
+    function initialize() public payable initializer {
+        __Ownable_init(_msgSender());
+        __UUPSUpgradeable_init();
+        __Multicall_init();
     }
 
     /// @inheritdoc IUniswapV3Staker
@@ -216,7 +232,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
 
         bytes32 incentiveId = IncentiveId.compute(key);
 
-        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
+        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity,) = stakes(tokenId, incentiveId);
 
         require(liquidity != 0, 'UniswapV3Staker::unstakeToken: stake does not exist');
 
@@ -248,10 +264,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
         // this only overflows if a token has a total supply greater than type(uint256).max
         rewards[key.rewardToken][deposit.owner] += reward;
 
-        Stake storage stake = _stakes[tokenId][incentiveId];
-        delete stake.secondsPerLiquidityInsideInitialX128;
-        delete stake.liquidityNoOverflow;
-        if (liquidity >= type(uint96).max) delete stake.liquidityIfOverflow;
+        delete _stakes[tokenId][incentiveId];
         emit TokenUnstaked(tokenId, incentiveId);
     }
 
@@ -272,6 +285,57 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
         emit RewardClaimed(to, reward);
     }
 
+    error NotOwnerAfterExpired();
+
+    function unstake(IncentiveKey memory key, uint256 tokenId) external override returns (uint256 liquidatorEarn, uint256 refunded, uint256 left) {
+        Deposit memory deposit = deposits[tokenId];
+
+        if (block.timestamp < key.endTime) {
+            if (_msgSender() != deposit.owner) revert NotOwnerAfterExpired();
+        }
+
+        address liquidator = _msgSender();
+        bytes32 incentiveId = IncentiveId.compute(key);
+
+        Incentive storage incentive = incentives[incentiveId];
+        --deposits[tokenId].numberOfStakes;
+        --incentive.numberOfStakes;
+
+        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity, uint32 stakedSince) = stakes(tokenId, incentiveId);
+
+        (, uint160 secondsPerLiquidityInsideX128, ) = key.pool.snapshotCumulativesInside(
+            deposit.tickLower,
+            deposit.tickUpper
+        );
+
+        (uint256 reward, uint160 secondsInsideX128) = RewardMath.computeRewardAmount(
+            incentive.totalRewardUnclaimed,
+            incentive.totalSecondsClaimedX128,
+            key.startTime,
+            key.endTime,
+            liquidity,
+            secondsPerLiquidityInsideInitialX128,
+            secondsPerLiquidityInsideX128,
+            stakedSince,
+            block.timestamp
+        );
+
+        {
+            /// penalty decreases exponentially
+            uint256 penalty = reward / (2 ** ((block.timestamp - stakedSince + 1 days - 1) / 1 days));
+            liquidatorEarn = penalty / 2;
+            refunded = penalty - liquidatorEarn;
+            left = reward - penalty;
+        }
+
+        incentive.totalSecondsClaimedX128 += secondsInsideX128;
+        incentive.totalRewardUnclaimed -= (left + liquidatorEarn);
+        rewards[key.rewardToken][deposit.owner] += left;
+        rewards[key.rewardToken][_msgSender()] += liquidatorEarn;
+
+        delete _stakes[tokenId][incentiveId];
+    }
+
     /// @inheritdoc IUniswapV3Staker
     function getRewardInfo(
         IncentiveKey memory key,
@@ -279,7 +343,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable {
     ) external view override returns (uint256 reward, uint160 secondsInsideX128) {
         bytes32 incentiveId = IncentiveId.compute(key);
 
-        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
+        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity,) = stakes(tokenId, incentiveId);
         require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
 
         Deposit memory deposit = deposits[tokenId];
