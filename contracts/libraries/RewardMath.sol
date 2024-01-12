@@ -30,13 +30,18 @@ library RewardMath {
         uint256 currentTime
     ) internal pure returns (uint256 reward, uint160 secondsInsideX128) {
         // this should never be called before the start time
-        assert(currentTime >= startTime);
+        require(currentTime >= startTime);
 
-        // this operation is safe, as the difference cannot be greater than 1/stake.liquidity
-        secondsInsideX128 = (secondsPerLiquidityInsideX128 - secondsPerLiquidityInsideInitialX128) * liquidity;
-
-        uint256 totalSecondsUnclaimedX128 = ((Math.max(endTime, currentTime) - startTime) << 128) -
-            totalSecondsClaimedX128;
+        uint256 totalSecondsUnclaimedX128;
+        if (currentTime > endTime) {
+            /// safe as time should not be over uint32
+            secondsInsideX128 = uint160((endTime - stakedSinceTime) << 128);
+            totalSecondsUnclaimedX128 = ((endTime - startTime) << 128) - totalSecondsClaimedX128;
+        } else {
+            // this operation is safe, as the difference cannot be greater than 1/stake.liquidity
+            secondsInsideX128 = (secondsPerLiquidityInsideX128 - secondsPerLiquidityInsideInitialX128) * liquidity;
+            totalSecondsUnclaimedX128 = ((currentTime - startTime) << 128) - totalSecondsClaimedX128;
+        }
 
         reward = FullMath.mulDiv(totalRewardUnclaimed, secondsInsideX128, totalSecondsUnclaimedX128);
     }
