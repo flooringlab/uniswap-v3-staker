@@ -17,12 +17,18 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param startTime The time when the incentive program begins
     /// @param endTime The time when rewards stop accruing
     /// @param refundee The address which receives any remaining reward tokens when the incentive is ended
+    /// @param minTickWidth The minimum width that staked positions should be kept
+    /// @param includeTick0 The current tick of the Uniswap V3 pool
+    /// @param penaltyDecreasePeriod
     struct IncentiveKey {
         IERC20Minimal rewardToken;
         IUniswapV3Pool pool;
         uint256 startTime;
         uint256 endTime;
         address refundee;
+        uint24 minTickWidth;
+        bool includeTick0;
+        uint32 penaltyDecreasePeriod;
     }
 
     /// @notice The Uniswap V3 Factory
@@ -63,7 +69,7 @@ interface IUniswapV3Staker is IERC721Receiver {
     function stakes(
         uint256 tokenId,
         bytes32 incentiveId
-    ) external view returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity);
+    ) external view returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity, uint32 stakedSince);
 
     /// @notice Returns amounts of reward tokens owed to a given address according to the last time all stakes were updated
     /// @param rewardToken The token for which to check rewards
@@ -100,7 +106,10 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @notice Unstakes a Uniswap V3 LP token
     /// @param key The key of the incentive for which to unstake the NFT
     /// @param tokenId The ID of the token to unstake
-    function unstakeToken(IncentiveKey memory key, uint256 tokenId) external;
+    function unstakeToken(
+        IncentiveKey memory key,
+        uint256 tokenId
+    ) external returns (uint256 liquidatorEarning, uint256 refunded, uint256 ownerEarning);
 
     /// @notice Transfers `amountRequested` of accrued `rewardToken` rewards from the contract to the recipient `to`
     /// @param rewardToken The token being distributed as a reward
@@ -164,4 +173,34 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param to The address where claimed rewards were sent to
     /// @param reward The amount of reward tokens claimed
     event RewardClaimed(address indexed to, uint256 reward);
+
+    error RewardMustBePositive();
+    error StartTimeMustBeNowOrFuture();
+    error StartTimeTooFarInFuture();
+    error StartTimeMustBeforeEndTime();
+    error IncentiveDurationTooLong();
+    error MinTickWidthMustBePositive();
+
+    error CannotEndIncentiveBeforeEndTime();
+    error NoRefundAvailable();
+    error CannotEndIncentiveWhileStaked();
+
+    error NotUniV3NFT();
+    error InvalidTransferRecipient();
+    error NotDepositOwner();
+    error CannotWithdrawToStaker();
+    error CannotWithdrawWhileStaked();
+
+    error CannotLiquidateByContract();
+    error CannotLiquidateWhileActive();
+
+    error StakeNotExist();
+    error IncentiveNotStarted();
+    error IncentiveWasEnded();
+    error IncentiveNotExist();
+    error TokenAlreadyStaked();
+    error PoolNotMatched();
+    error CannotStakeZeroLiquidity();
+    error PositionRangeTooNarrow();
+    error CurrentTickMustWithinRange();
 }
