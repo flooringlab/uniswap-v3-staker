@@ -20,6 +20,7 @@ describe('unit/RewardMath', () => {
       /*liquidity=*/ 5,
       /*secondsPerLiquidityInsideInitialX128=*/ 0,
       /*secondsPerLiquidityInsideX128=*/ BigNumber.from(20).shl(128).div(10),
+      /*stakedSince=*/ 0,
       /*currentTime=*/ 120,
     )
     // 1000 * 0.5 * 0.2
@@ -37,6 +38,7 @@ describe('unit/RewardMath', () => {
       /*liquidity=*/ 100,
       /*secondsPerLiquidityInsideInitialX128=*/ 0,
       /*secondsPerLiquidityInsideX128=*/ BigNumber.from(100).shl(128).div(100),
+      /*stakedSince=*/ 0,
       /*currentTime=*/ 300,
     )
     // half the reward goes to the staker, the other half goes to those staking after the period
@@ -53,6 +55,7 @@ describe('unit/RewardMath', () => {
       /*liquidity=*/ 100,
       /*secondsPerLiquidityInsideInitialX128=*/ 0,
       /*secondsPerLiquidityInsideX128=*/ BigNumber.from(100).shl(128).div(100),
+      /*stakedSince=*/ 0,
       /*currentTime=*/ 201,
     )
     // the reward decays by up to the reward rate per second
@@ -69,6 +72,7 @@ describe('unit/RewardMath', () => {
       /*liquidity=*/ 5,
       /*secondsPerLiquidityInsideInitialX128=*/ 0,
       /*secondsPerLiquidityInsideX128=*/ BigNumber.from(20).shl(128).div(10),
+      /*stakedSince=*/ 0,
       /*currentTime=*/ 120,
     )
     expect(reward).to.eq(111)
@@ -84,6 +88,7 @@ describe('unit/RewardMath', () => {
       /*liquidity=*/ 5,
       /*secondsPerLiquidityInsideInitialX128=*/ 0,
       /*secondsPerLiquidityInsideX128=*/ BigNumber.from(20).shl(128).div(10),
+      /*stakedSince=*/ 0,
       /*currentTime=*/ 120,
     )
     expect(reward).to.eq(0)
@@ -99,6 +104,7 @@ describe('unit/RewardMath', () => {
       /*liquidity=*/ 5,
       /*secondsPerLiquidityInsideInitialX128=*/ BigNumber.from(20).shl(128).div(10),
       /*secondsPerLiquidityInsideX128=*/ BigNumber.from(20).shl(128).div(10),
+      /*stakedSince=*/ 0,
       /*currentTime=*/ 120,
     )
     expect(reward).to.eq(0)
@@ -114,6 +120,7 @@ describe('unit/RewardMath', () => {
       /*liquidity=*/ 0,
       /*secondsPerLiquidityInsideInitialX128=*/ 0,
       /*secondsPerLiquidityInsideX128=*/ BigNumber.from(20).shl(128).div(10),
+      /*stakedSince=*/ 0,
       /*currentTime=*/ 120,
     )
     expect(reward).to.eq(0)
@@ -130,6 +137,7 @@ describe('unit/RewardMath', () => {
         /*liquidity=*/ 5,
         /*secondsPerLiquidityInsideInitialX128=*/ 0,
         /*secondsPerLiquidityInsideX128=*/ BigNumber.from(20).shl(128).div(10),
+        /*stakedSince=*/ 0,
         /*currentTime=*/ 99,
       ),
     ).to.be.reverted

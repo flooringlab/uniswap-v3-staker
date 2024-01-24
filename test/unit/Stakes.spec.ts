@@ -16,6 +16,7 @@ import {
   ActorFixture,
   makeTimestamps,
   maxGas,
+  defaultPositionCfg,
 } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
 import { HelperCommands, ERC20Helper, incentiveResultToStakeAdapter } from '../helpers'
@@ -90,6 +91,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
+        ...defaultPositionCfg,
       }
 
       incentiveId = await helpers.getIncentiveId(await helpers.createIncentiveFlow(incentiveArgs))
@@ -101,6 +103,7 @@ describe('unit/Stakes', () => {
             pool: context.pool01,
             rewardToken: context.rewardToken.address,
             ...timestamps,
+            ...defaultPositionCfg,
           },
           _tokenId,
         )
@@ -236,6 +239,7 @@ describe('unit/Stakes', () => {
               pool: context.pool01,
               rewardToken: context.rewardToken.address,
               ...timestamps,
+              ...defaultPositionCfg,
             },
             otherTokenId,
           ),
@@ -253,6 +257,7 @@ describe('unit/Stakes', () => {
               rewardToken: context.rewardToken.address,
               ...timestamps,
               startTime: timestamps.startTime + 10,
+              ...defaultPositionCfg,
             },
             tokenId,
           ),
@@ -296,6 +301,7 @@ describe('unit/Stakes', () => {
         rewardToken: context.rewardToken.address,
         pool: context.pool01,
         ...timestamps,
+        ...defaultPositionCfg,
       }
 
       incentiveId = await helpers.getIncentiveId(
@@ -304,6 +310,7 @@ describe('unit/Stakes', () => {
           totalReward,
           poolAddress: context.poolObj.address,
           ...timestamps,
+          ...defaultPositionCfg,
         }),
       )
 
@@ -367,6 +374,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
+        ...defaultPositionCfg,
       })
 
       await Time.setAndMine(timestamps.startTime + 1)
@@ -387,6 +395,7 @@ describe('unit/Stakes', () => {
           rewardToken: context.rewardToken.address,
           pool: context.pool01,
           ...timestamps,
+          ...defaultPositionCfg,
         },
         tokenId,
       )
@@ -487,6 +496,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
+        ...defaultPositionCfg,
       })
 
       await erc20Helper.ensureBalancesAndApprovals(
@@ -522,6 +532,7 @@ describe('unit/Stakes', () => {
           rewardToken: context.rewardToken.address,
           pool: context.pool01,
           ...timestamps,
+          ...defaultPositionCfg,
         },
         tokenId,
       )
@@ -535,6 +546,7 @@ describe('unit/Stakes', () => {
             pool: context.pool01,
             rewardToken: context.rewardToken.address,
             ...timestamps,
+            ...defaultPositionCfg,
           },
           tokenId,
         )
@@ -636,6 +648,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
+        ...defaultPositionCfg,
       })
       incentiveId = await helpers.getIncentiveId(incentive)
       await Time.setAndMine(timestamps.startTime + 1)

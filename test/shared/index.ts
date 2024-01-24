@@ -6,7 +6,7 @@ export * from './actors'
 export * from './logging'
 export * from './ticks'
 
-import { FeeAmount } from './external/v3-periphery/constants'
+import { FeeAmount, TICK_SPACINGS } from './external/v3-periphery/constants'
 import { provider } from './provider'
 import { BigNumber, BigNumberish, Contract, ContractTransaction } from 'ethers'
 import { TransactionReceipt, TransactionResponse } from '@ethersproject/abstract-provider'
@@ -21,6 +21,7 @@ import { jestSnapshotPlugin } from 'mocha-chai-jest-snapshot'
 import { IUniswapV3Pool, TestERC20 } from '../../typechain-v5'
 import { isArray, isString } from 'lodash'
 import { ethers } from 'hardhat'
+import { getMaxTick, getMinTick } from './external/v3-periphery/ticks'
 
 export const { MaxUint256 } = constants
 
@@ -144,3 +145,9 @@ export const makeTimestamps = (n: number, duration: number = 1_000) => ({
   startTime: n + 100,
   endTime: n + 100 + duration,
 })
+
+export const defaultPositionCfg = {
+  minTickWidth: BigNumber.from(getMaxTick(TICK_SPACINGS[FeeAmount.LOW]) - getMinTick(TICK_SPACINGS[FeeAmount.LOW])),
+  includeTick0: true,
+  penaltyDecreasePeriod: BigNumber.from(days(1)),
+}
