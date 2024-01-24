@@ -31,4 +31,16 @@ contract TestRewardMath {
             currentTime
         );
     }
+
+    function computeRewardDistribution(
+        uint256 reward,
+        uint32 stakedSince,
+        uint32 penaltyDecreasePeriod
+    ) internal view returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
+        (ownerEarning, liquidatorEarning, refunded) = RewardMath.computeRewardDistribution(
+            reward,
+            stakedSince,
+            penaltyDecreasePeriod
+        );
+    }
 }
