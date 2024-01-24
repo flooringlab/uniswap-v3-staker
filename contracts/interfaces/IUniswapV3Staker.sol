@@ -109,7 +109,7 @@ interface IUniswapV3Staker is IERC721Receiver {
     function unstakeToken(
         IncentiveKey memory key,
         uint256 tokenId
-    ) external returns (uint256 liquidatorEarning, uint256 refunded, uint256 ownerEarning);
+    ) external returns (uint256 liquidatorEarning, uint256 ownerEarning, uint256 refunded);
 
     /// @notice Transfers `amountRequested` of accrued `rewardToken` rewards from the contract to the recipient `to`
     /// @param rewardToken The token being distributed as a reward

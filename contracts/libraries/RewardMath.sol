@@ -45,4 +45,17 @@ library RewardMath {
 
         reward = FullMath.mulDiv(totalRewardUnclaimed, secondsInsideX128, totalSecondsUnclaimedX128);
     }
+
+    function computeRewardDistribution(
+        uint256 reward,
+        uint32 stakedSince,
+        uint32 penaltyDecreasePeriod
+    ) internal view returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
+        /// penalty decreases exponentially
+        uint256 penalty = reward /
+            (2 ** ((block.timestamp - stakedSince + penaltyDecreasePeriod - 1) / penaltyDecreasePeriod));
+        liquidatorEarning = penalty / 2;
+        refunded = penalty - liquidatorEarning;
+        ownerEarning = reward - penalty;
+    }
 }

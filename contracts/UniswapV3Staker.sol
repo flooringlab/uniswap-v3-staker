@@ -38,8 +38,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     /// @notice Represents a staked liquidity NFT
     struct Stake {
         uint160 secondsPerLiquidityInsideInitialX128;
-        uint96 liquidityNoOverflow;
-        uint128 liquidityIfOverflow;
+        uint128 liquidity;
         uint32 stakedSince;
     }
 
@@ -74,11 +73,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     {
         Stake storage stake = _stakes[tokenId][incentiveId];
         secondsPerLiquidityInsideInitialX128 = stake.secondsPerLiquidityInsideInitialX128;
-        liquidity = stake.liquidityNoOverflow;
+        liquidity = stake.liquidity;
         stakedSince = stake.stakedSince;
-        if (liquidity == type(uint96).max) {
-            liquidity = stake.liquidityIfOverflow;
-        }
     }
 
     /// @dev rewards[rewardToken][owner] => uint256
@@ -227,44 +223,18 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             if (deposit.tickLower <= tick && tick <= deposit.tickUpper) revert CannotLiquidateWhileActive();
         }
 
+        (uint256 reward, uint160 secondsInsideX128) = _wrapComputeRewardAmount(key, deposit, tokenId);
+
         bytes32 incentiveId = IncentiveId.compute(key);
+        (uint256 ownerEarning, uint256 liquidatorEarning, ) = RewardMath.computeRewardDistribution(
+            reward,
+            _stakes[tokenId][incentiveId].stakedSince,
+            key.penaltyDecreasePeriod
+        );
 
         Incentive storage incentive = incentives[incentiveId];
-        --deposits[tokenId].numberOfStakes;
         --incentive.numberOfStakes;
-
-        uint32 stakedSince;
-        uint256 reward;
-        uint160 secondsInsideX128;
-        {
-            uint160 secondsPerLiquidityInsideInitialX128;
-            uint128 liquidity;
-            (secondsPerLiquidityInsideInitialX128, liquidity, stakedSince) = stakes(tokenId, incentiveId);
-
-            (, uint160 secondsPerLiquidityInsideX128, ) = key.pool.snapshotCumulativesInside(
-                deposit.tickLower,
-                deposit.tickUpper
-            );
-
-            (reward, secondsInsideX128) = RewardMath.computeRewardAmount(
-                incentive.totalRewardUnclaimed,
-                incentive.totalSecondsClaimedX128,
-                key.startTime,
-                key.endTime,
-                liquidity,
-                secondsPerLiquidityInsideInitialX128,
-                secondsPerLiquidityInsideX128,
-                stakedSince,
-                block.timestamp
-            );
-        }
-
-        /// penalty decreases exponentially
-        uint256 penalty = reward /
-            (2 ** ((block.timestamp - stakedSince + key.penaltyDecreasePeriod - 1) / key.penaltyDecreasePeriod));
-        uint256 liquidatorEarning = penalty / 2;
-        uint256 refunded = penalty - liquidatorEarning;
-        uint256 ownerEarning = reward - penalty;
+        --deposits[tokenId].numberOfStakes;
 
         // if this overflows, e.g. after 2^32-1 full liquidity seconds have been claimed,
         // reward rate will fall drastically so it's safe
@@ -281,7 +251,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
         delete _stakes[tokenId][incentiveId];
 
-        return (liquidatorEarning, refunded, ownerEarning);
+        return (liquidatorEarning, ownerEarning, reward - ownerEarning - liquidatorEarning);
     }
 
     /// @inheritdoc IUniswapV3Staker
@@ -343,7 +313,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         bytes32 incentiveId = IncentiveId.compute(key);
 
         if (incentives[incentiveId].totalRewardUnclaimed <= 0) revert IncentiveNotExist();
-        if (_stakes[tokenId][incentiveId].liquidityNoOverflow != 0) revert TokenAlreadyStaked();
+        if (_stakes[tokenId][incentiveId].liquidity != 0) revert TokenAlreadyStaked();
 
         (IUniswapV3Pool pool, int24 tickLower, int24 tickUpper, uint128 liquidity) = NFTPositionInfo.getPositionInfo(
             factory,
@@ -364,20 +334,43 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
         (, uint160 secondsPerLiquidityInsideX128, ) = pool.snapshotCumulativesInside(tickLower, tickUpper);
 
-        if (liquidity >= type(uint96).max) {
-            _stakes[tokenId][incentiveId] = Stake({
-                secondsPerLiquidityInsideInitialX128: secondsPerLiquidityInsideX128,
-                liquidityNoOverflow: type(uint96).max,
-                liquidityIfOverflow: liquidity,
-                stakedSince: uint32(block.timestamp)
-            });
-        } else {
-            Stake storage stake = _stakes[tokenId][incentiveId];
-            stake.secondsPerLiquidityInsideInitialX128 = secondsPerLiquidityInsideX128;
-            stake.liquidityNoOverflow = uint96(liquidity);
-            stake.stakedSince = uint32(block.timestamp);
-        }
+        _stakes[tokenId][incentiveId] = Stake({
+            secondsPerLiquidityInsideInitialX128: secondsPerLiquidityInsideX128,
+            liquidity: liquidity,
+            stakedSince: uint32(block.timestamp)
+        });
 
         emit TokenStaked(tokenId, incentiveId, liquidity);
+    }
+
+    function _wrapComputeRewardAmount(
+        IncentiveKey memory key,
+        Deposit memory deposit,
+        uint256 tokenId
+    ) private view returns (uint256 reward, uint160 secondsInsideX128) {
+        bytes32 incentiveId = IncentiveId.compute(key);
+        Incentive storage incentive = incentives[incentiveId];
+        (, uint160 secondsPerLiquidityInsideX128, ) = key.pool.snapshotCumulativesInside(
+            deposit.tickLower,
+            deposit.tickUpper
+        );
+
+        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity, uint32 stakedSince) = stakes(
+            tokenId,
+            incentiveId
+        );
+
+        return
+            RewardMath.computeRewardAmount(
+                incentive.totalRewardUnclaimed,
+                incentive.totalSecondsClaimedX128,
+                key.startTime,
+                key.endTime,
+                liquidity,
+                secondsPerLiquidityInsideInitialX128,
+                secondsPerLiquidityInsideX128,
+                stakedSince,
+                block.timestamp
+            );
     }
 }
