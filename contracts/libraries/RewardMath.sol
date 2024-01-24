@@ -35,6 +35,7 @@ library RewardMath {
         uint256 totalSecondsUnclaimedX128;
         if (currentTime > endTime) {
             /// safe as time should not be over uint32
+            /// when incentive expired, assume the stakes were active throughout the entire staking period
             secondsInsideX128 = uint160((endTime - stakedSinceTime) << 128);
             totalSecondsUnclaimedX128 = ((endTime - startTime) << 128) - totalSecondsClaimedX128;
         } else {
