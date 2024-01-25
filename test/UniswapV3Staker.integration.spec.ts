@@ -20,6 +20,7 @@ import {
   BNe,
   mintPosition,
   defaultPositionCfg,
+  midPositionCfg,
 } from './shared'
 import { createTimeMachine } from './shared/time'
 import { ERC20Helper, HelperCommands, incentiveResultToStakeAdapter } from './helpers'
@@ -463,13 +464,14 @@ describe('integration', async () => {
       const startTime = epoch + 1_000
       const endTime = startTime + duration
 
+      let midpoint = await getCurrentTick(context.poolObj.connect(actors.lpUser0()))
       const createIncentiveResult = await helpers.createIncentiveFlow({
         startTime,
         endTime,
         rewardToken: context.rewardToken,
         poolAddress: context.pool01,
         totalReward,
-        ...defaultPositionCfg(),
+        ...midPositionCfg(midpoint, 20, FeeAmount.MEDIUM),
       })
 
       return {

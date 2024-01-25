@@ -91,7 +91,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
-        ...defaultPositionCfg(FeeAmount.MEDIUM),
+        ...defaultPositionCfg(),
       }
 
       incentiveId = await helpers.getIncentiveId(await helpers.createIncentiveFlow(incentiveArgs))
@@ -103,7 +103,7 @@ describe('unit/Stakes', () => {
             pool: context.pool01,
             rewardToken: context.rewardToken.address,
             ...timestamps,
-            ...defaultPositionCfg(FeeAmount.MEDIUM),
+            ...defaultPositionCfg(),
           },
           _tokenId,
         )
@@ -301,7 +301,7 @@ describe('unit/Stakes', () => {
         rewardToken: context.rewardToken.address,
         pool: context.pool01,
         ...timestamps,
-        ...defaultPositionCfg(FeeAmount.MEDIUM),
+        ...defaultPositionCfg(),
       }
 
       incentiveId = await helpers.getIncentiveId(
@@ -310,7 +310,7 @@ describe('unit/Stakes', () => {
           totalReward,
           poolAddress: context.poolObj.address,
           ...timestamps,
-          ...defaultPositionCfg(FeeAmount.MEDIUM),
+          ...defaultPositionCfg(),
         }),
       )
 
@@ -374,7 +374,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
-        ...defaultPositionCfg(FeeAmount.MEDIUM),
+        ...defaultPositionCfg(),
       })
 
       await Time.setAndMine(timestamps.startTime + 1)
@@ -395,7 +395,7 @@ describe('unit/Stakes', () => {
           rewardToken: context.rewardToken.address,
           pool: context.pool01,
           ...timestamps,
-          ...defaultPositionCfg(FeeAmount.MEDIUM),
+          ...defaultPositionCfg(),
         },
         tokenId,
       )
@@ -496,7 +496,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
-        ...defaultPositionCfg(FeeAmount.MEDIUM),
+        ...defaultPositionCfg(),
       })
 
       await erc20Helper.ensureBalancesAndApprovals(
@@ -532,7 +532,7 @@ describe('unit/Stakes', () => {
           rewardToken: context.rewardToken.address,
           pool: context.pool01,
           ...timestamps,
-          ...defaultPositionCfg(FeeAmount.MEDIUM),
+          ...defaultPositionCfg(),
         },
         tokenId,
       )
@@ -546,7 +546,7 @@ describe('unit/Stakes', () => {
             pool: context.pool01,
             rewardToken: context.rewardToken.address,
             ...timestamps,
-            ...defaultPositionCfg(FeeAmount.MEDIUM),
+            ...defaultPositionCfg(),
           },
           tokenId,
         )

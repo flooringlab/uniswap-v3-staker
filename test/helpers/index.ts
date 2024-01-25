@@ -12,6 +12,7 @@ import {
   getMinTick,
   getMaxTick,
   BN,
+  TICK_SPACINGS,
 } from '../shared/index'
 import _ from 'lodash'
 import {
@@ -219,8 +220,8 @@ export class HelperCommands {
       token0: params.tokens[0].address,
       token1: params.tokens[1].address,
       fee,
-      tickLower: params.tickLower || getMinTick(fee),
-      tickUpper: params.tickUpper || getMaxTick(fee),
+      tickLower: params.tickLower || getMinTick(TICK_SPACINGS[fee]),
+      tickUpper: params.tickUpper || getMaxTick(TICK_SPACINGS[fee]),
       recipient: params.lp.address,
       amount0Desired,
       amount1Desired,

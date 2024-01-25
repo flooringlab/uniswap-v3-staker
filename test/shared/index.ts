@@ -147,7 +147,7 @@ export const makeTimestamps = (n: number, duration: number = 1_000) => ({
 })
 
 export const defaultPositionCfg = (
-  feeTier: FeeAmount = FeeAmount.LOW,
+  feeTier: FeeAmount = FeeAmount.MEDIUM,
   tickLower: number = getMinTick(TICK_SPACINGS[feeTier]),
   tickUpper: number = getMaxTick(TICK_SPACINGS[feeTier]),
 ) => ({
@@ -155,3 +155,10 @@ export const defaultPositionCfg = (
   includeTick0: true,
   penaltyDecreasePeriod: BigNumber.from(days(1)),
 })
+
+export const midPositionCfg = (midpoint: number = 0, width: number = 20, feeTier: FeeAmount = FeeAmount.MEDIUM) =>
+  defaultPositionCfg(
+    feeTier,
+    midpoint - (width / 2) * TICK_SPACINGS[feeTier],
+    midpoint + (width / 2) * TICK_SPACINGS[feeTier],
+  )
