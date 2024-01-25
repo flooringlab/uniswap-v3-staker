@@ -15,6 +15,7 @@ import {
   ActorFixture,
   makeTimestamps,
   maxGas,
+  defaultPositionCfg,
 } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
 import { HelperCommands, ERC20Helper, incentiveResultToStakeAdapter } from '../helpers'
@@ -105,6 +106,7 @@ describe('unit/Deposits', () => {
         poolAddress: context.poolObj.address,
         startTime,
         totalReward,
+        ...defaultPositionCfg(),
       })
 
       await Time.setAndMine(startTime + 1)
@@ -154,6 +156,7 @@ describe('unit/Deposits', () => {
         poolAddress: context.poolObj.address,
         startTime: createIncentiveResult.startTime + 100,
         totalReward,
+        ...defaultPositionCfg(),
       })
 
       await Time.setAndMine(createIncentiveResult2.startTime)
@@ -250,6 +253,7 @@ describe('unit/Deposits', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
+        ...defaultPositionCfg(),
       })
 
       const incentiveKey: ContractParams.IncentiveKey = incentiveResultToStakeAdapter(incentive)
@@ -281,6 +285,7 @@ describe('unit/Deposits', () => {
           startTime: timestamps.startTime,
           endTime: timestamps.endTime,
           refundee: incentiveCreator.address,
+          ...defaultPositionCfg(),
         })
         await Time.set(timestamps.startTime + 10)
         const stakeBefore = await context.staker.stakes(tokenId, incentiveId)
@@ -399,6 +404,7 @@ describe('unit/Deposits', () => {
           totalReward,
           poolAddress: context.poolObj.address,
           ...timestamps,
+          ...defaultPositionCfg(),
         }
         const incentive = await helpers.createIncentiveFlow(incentiveParams)
         await Time.setAndMine(timestamps.startTime + 1)

@@ -14,6 +14,7 @@ import {
   maxGas,
   defaultTicksArray,
   expect,
+  defaultPositionCfg,
 } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
 import { HelperCommands, ERC20Helper, incentiveResultToStakeAdapter } from '../helpers'
@@ -50,7 +51,7 @@ describe('unit/Multicall', () => {
       multicaller,
       [context.token0, context.token1],
       amountDesired,
-      context.nft.address
+      context.nft.address,
     )
     await mintPosition(context.nft.connect(multicaller), {
       token0: context.token0.address,
@@ -74,6 +75,7 @@ describe('unit/Multicall', () => {
         rewardToken: context.rewardToken.address,
         refundee: incentiveCreator.address,
         ...makeTimestamps(currentTime + 100),
+        ...defaultPositionCfg(FeeAmount.MEDIUM),
       },
       totalReward,
     ])
@@ -100,6 +102,7 @@ describe('unit/Multicall', () => {
       poolAddress: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),
+      ...defaultPositionCfg(FeeAmount.MEDIUM),
     }
 
     const incentive0 = await helpers.createIncentiveFlow(incentiveParams)
@@ -135,6 +138,7 @@ describe('unit/Multicall', () => {
       refundee: actors.incentiveCreator().address,
       totalReward: BN(10000),
       poolAddress: context.pool01,
+      ...defaultPositionCfg(FeeAmount.MEDIUM),
     })
     await helpers.getIncentiveId(incentive0)
     const incentive1 = await helpers.createIncentiveFlow({
@@ -144,6 +148,7 @@ describe('unit/Multicall', () => {
       refundee: actors.incentiveCreator().address,
       totalReward: BN(10000),
       poolAddress: context.pool01,
+      ...defaultPositionCfg(FeeAmount.MEDIUM),
     })
     await helpers.getIncentiveId(incentive1)
 
@@ -186,6 +191,7 @@ describe('unit/Multicall', () => {
       poolAddress: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),
+      ...defaultPositionCfg(),
     })
 
     const params: HelperTypes.MintDepositStake.Args = {

@@ -146,8 +146,12 @@ export const makeTimestamps = (n: number, duration: number = 1_000) => ({
   endTime: n + 100 + duration,
 })
 
-export const defaultPositionCfg = {
-  minTickWidth: BigNumber.from(getMaxTick(TICK_SPACINGS[FeeAmount.LOW]) - getMinTick(TICK_SPACINGS[FeeAmount.LOW])),
+export const defaultPositionCfg = (
+  feeTier: FeeAmount = FeeAmount.LOW,
+  tickLower: number = getMinTick(TICK_SPACINGS[feeTier]),
+  tickUpper: number = getMaxTick(TICK_SPACINGS[feeTier]),
+) => ({
+  minTickWidth: BigNumber.from(tickUpper - tickLower),
   includeTick0: true,
   penaltyDecreasePeriod: BigNumber.from(days(1)),
-}
+})
