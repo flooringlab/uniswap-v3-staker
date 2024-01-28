@@ -11,7 +11,6 @@ export module ContractParams {
     rewardToken: string
     refundee: string
     minTickWidth: BigNumberish
-    includeTick0: boolean
     penaltyDecreasePeriod: BigNumberish
   } & Timestamps
 

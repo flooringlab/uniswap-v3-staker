@@ -226,11 +226,13 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         (uint256 reward, uint160 secondsInsideX128) = _wrapComputeRewardAmount(key, deposit, tokenId);
 
         bytes32 incentiveId = IncentiveId.compute(key);
-        (uint256 ownerEarning, uint256 liquidatorEarning, ) = RewardMath.computeRewardDistribution(
-            reward,
-            _stakes[tokenId][incentiveId].stakedSince,
-            key.penaltyDecreasePeriod
-        );
+        (uint256 ownerEarning, uint256 liquidatorEarning, ) = isLiquidation
+            ? RewardMath.computeRewardDistribution(
+                reward,
+                _stakes[tokenId][incentiveId].stakedSince,
+                key.penaltyDecreasePeriod
+            )
+            : (reward, 0, 0);
 
         Incentive storage incentive = incentives[incentiveId];
         --incentive.numberOfStakes;
@@ -324,10 +326,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         if (pool != key.pool) revert PoolNotMatched();
         if (liquidity <= 0) revert CannotStakeZeroLiquidity();
         if (key.minTickWidth > uint24(tickUpper - tickLower)) revert PositionRangeTooNarrow();
-        if (key.includeTick0) {
-            (, int24 tick, , , , , ) = key.pool.slot0();
-            if (tick < tickLower || tick > tickUpper) revert CurrentTickMustWithinRange();
-        }
+        (, int24 tick, , , , , ) = key.pool.slot0();
+        if (tick < tickLower || tick > tickUpper) revert CurrentTickMustWithinRange();
 
         deposits[tokenId].numberOfStakes++;
         incentives[incentiveId].numberOfStakes++;

@@ -14,7 +14,6 @@ export module HelperTypes {
       totalReward: BigNumber
       refundee?: string
       minTickWidth: BigNumber
-      includeTick0: boolean
       penaltyDecreasePeriod: BigNumber
     }
     export type Result = {
@@ -25,7 +24,6 @@ export module HelperTypes {
       endTime: number
       refundee: string
       minTickWidth: BigNumber
-      includeTick0: boolean
       penaltyDecreasePeriod: BigNumber
     }
 
