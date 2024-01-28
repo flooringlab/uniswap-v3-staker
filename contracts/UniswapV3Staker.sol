@@ -21,9 +21,11 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradeable, OwnableUpgradeable {
     /// @notice Represents a staking incentive
     struct Incentive {
-        uint256 totalRewardUnclaimed;
-        uint160 totalSecondsClaimedX128;
+        uint256 remainingReward;
         uint96 numberOfStakes;
+        uint256 totalShares;
+        uint256 rewardPerShare;
+        uint32 lastAccrueTime;
     }
 
     /// @notice Represents the deposit of a liquidity NFT
@@ -36,9 +38,9 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
     /// @notice Represents a staked liquidity NFT
     struct Stake {
-        uint160 secondsPerLiquidityInsideInitialX128;
         uint128 liquidity;
-        uint32 stakedSince;
+        uint128 shares;
+        uint256 lastRewardPerShare;
     }
 
     /// @inheritdoc IUniswapV3Staker
@@ -158,18 +160,27 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     ) external override returns (bytes4) {
         if (_msgSender() != address(nonfungiblePositionManager)) revert NotUniV3NFT();
 
-        (, , , , , int24 tickLower, int24 tickUpper, , , , , ) = nonfungiblePositionManager.positions(tokenId);
+        NFTPositionInfo.PositionInfo memory positionInfo = NFTPositionInfo.getPositionInfo(
+            factory,
+            nonfungiblePositionManager,
+            tokenId
+        );
 
-        deposits[tokenId] = Deposit({owner: from, numberOfStakes: 0, tickLower: tickLower, tickUpper: tickUpper});
+        deposits[tokenId] = Deposit({
+            owner: from,
+            numberOfStakes: 0,
+            tickLower: positionInfo.tickLower,
+            tickUpper: positionInfo.tickUpper
+        });
         emit DepositTransferred(tokenId, address(0), from);
 
         if (data.length > 0) {
             if (data.length == 160) {
-                _stakeToken(abi.decode(data, (IncentiveKey)), tokenId);
+                _stakeToken(abi.decode(data, (IncentiveKey)), tokenId, positionInfo);
             } else {
                 IncentiveKey[] memory keys = abi.decode(data, (IncentiveKey[]));
                 for (uint256 i = 0; i < keys.length; i++) {
-                    _stakeToken(keys[i], tokenId);
+                    _stakeToken(keys[i], tokenId, positionInfo);
                 }
             }
         }
@@ -202,7 +213,13 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     function stakeToken(IncentiveKey memory key, uint256 tokenId) external override {
         if (deposits[tokenId].owner != _msgSender()) revert NotDepositOwner();
 
-        _stakeToken(key, tokenId);
+        NFTPositionInfo.PositionInfo memory positionInfo = NFTPositionInfo.getPositionInfo(
+            factory,
+            nonfungiblePositionManager,
+            tokenId
+        );
+
+        _stakeToken(key, tokenId, positionInfo);
     }
 
     /// @inheritdoc IUniswapV3Staker
@@ -307,36 +324,50 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     }
 
     /// @dev Stakes a deposited token without doing an ownership check
-    function _stakeToken(IncentiveKey memory key, uint256 tokenId) private {
+    function _stakeToken(
+        IncentiveKey memory key,
+        uint256 tokenId,
+        NFTPositionInfo.PositionInfo memory positionInfo
+    ) private {
         if (block.timestamp < key.startTime) revert IncentiveNotStarted();
         if (block.timestamp >= key.endTime) revert IncentiveWasEnded();
 
         bytes32 incentiveId = IncentiveId.compute(key);
 
         if (incentives[incentiveId].totalRewardUnclaimed <= 0) revert IncentiveNotExist();
-        if (_stakes[tokenId][incentiveId].liquidity != 0) revert TokenAlreadyStaked();
+        if (_stakes[tokenId][incentiveId].shares != 0) revert TokenAlreadyStaked();
 
-        (IUniswapV3Pool pool, int24 tickLower, int24 tickUpper, uint128 liquidity) = NFTPositionInfo.getPositionInfo(
-            factory,
-            nonfungiblePositionManager,
-            tokenId
+        (IUniswapV3Pool pool, int24 tickLower, int24 tickUpper, uint128 liquidity) = (
+            positionInfo.pool,
+            positionInfo.tickLower,
+            positionInfo.tickUpper,
+            positionInfo.liquidity
         );
 
-        if (pool != key.pool) revert PoolNotMatched();
-        if (liquidity <= 0) revert CannotStakeZeroLiquidity();
-        if (key.minTickWidth > uint24(tickUpper - tickLower)) revert PositionRangeTooNarrow();
-        (, int24 tick, , , , , ) = key.pool.slot0();
-        if (tick < tickLower || tick > tickUpper) revert CurrentTickMustWithinRange();
+        {
+            if (pool != key.pool) revert PoolNotMatched();
+            if (positionInfo.liquidity <= 0) revert CannotStakeZeroLiquidity();
+            if (key.minTickWidth > uint24(tickUpper - tickLower)) revert PositionRangeTooNarrow();
+            /// Position should include current tick
+            (, int24 tick, , , , , ) = pool.slot0();
+            if (tick < tickLower || tick > tickUpper) revert CurrentTickMustWithinRange();
+        }
+
+        Incentive storage incentive = incentives[incentiveId];
+        {
+            uint256 accruedReward = (incentive.remainingReward * (block.timestamp - incentive.lastAccrueTime)) /
+                (key.endTime - incentive.lastAccrueTime);
+            incentive.rewardPerShare += (accruedReward / incentive.totalShares);
+        }
 
         deposits[tokenId].numberOfStakes++;
         incentives[incentiveId].numberOfStakes++;
-
-        (, uint160 secondsPerLiquidityInsideX128, ) = pool.snapshotCumulativesInside(tickLower, tickUpper);
+        incentives[incentiveId].totalShares += liquidity;
 
         _stakes[tokenId][incentiveId] = Stake({
-            secondsPerLiquidityInsideInitialX128: secondsPerLiquidityInsideX128,
             liquidity: liquidity,
-            stakedSince: uint32(block.timestamp)
+            shares: liquidity,
+            lastRewardPerShare: incentives[incentiveId].rewardPerShare
         });
 
         emit TokenStaked(tokenId, incentiveId, liquidity);
