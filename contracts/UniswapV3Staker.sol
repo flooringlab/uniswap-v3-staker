@@ -105,6 +105,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         bytes32 incentiveId = IncentiveId.compute(key);
 
         incentives[incentiveId].remainingReward += reward;
+        incentives[incentiveId].lastAccrueTime = uint32(block.timestamp);
 
         TransferHelperExtended.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward);
 
@@ -316,7 +317,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
         {
             if (pool != key.pool) revert PoolNotMatched();
-            if (positionInfo.liquidity <= 0) revert CannotStakeZeroLiquidity();
+            if (positionInfo.liquidity == 0) revert CannotStakeZeroLiquidity();
             if (key.minTickWidth > uint24(tickUpper - tickLower)) revert PositionRangeTooNarrow();
             /// Position should include current tick
             (, int24 tick, , , , , ) = pool.slot0();
