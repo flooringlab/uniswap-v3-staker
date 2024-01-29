@@ -113,22 +113,26 @@ export class HelperCommands {
 
     await this.staker.connect(incentiveCreator).createIncentive(
       {
-        pool: params.poolAddress,
+        pool: params.pool,
         rewardToken: params.rewardToken.address,
         ...times,
         refundee: params.refundee || incentiveCreator.address,
         minTickWidth: params.minTickWidth,
         penaltyDecreasePeriod: params.penaltyDecreasePeriod,
+        minPenaltyBips: params.minPenaltyBips,
       },
       params.totalReward,
     )
 
     return {
-      ..._.pick(params, ['poolAddress', 'totalReward', 'rewardToken']),
       ...times,
+      rewardToken: params.rewardToken,
+      pool: params.pool,
+      totalReward: params.totalReward,
       refundee: params.refundee || incentiveCreator.address,
       minTickWidth: params.minTickWidth,
       penaltyDecreasePeriod: params.penaltyDecreasePeriod,
+      minPenaltyBips: params.minPenaltyBips,
     }
   }
 
@@ -290,10 +294,11 @@ export class HelperCommands {
       await this.staker.connect(incentiveCreator).endIncentive(
         _.assign({}, _.pick(params.createIncentiveResult, ['startTime', 'endTime']), {
           rewardToken: rewardToken.address,
-          pool: params.createIncentiveResult.poolAddress,
+          pool: params.createIncentiveResult.pool,
           refundee: params.createIncentiveResult.refundee,
           minTickWidth: params.createIncentiveResult.minTickWidth,
           penaltyDecreasePeriod: params.createIncentiveResult.penaltyDecreasePeriod,
+          minPenaltyBips: params.createIncentiveResult.minPenaltyBips,
         }),
       )
     ).wait()
@@ -318,12 +323,13 @@ export class HelperCommands {
   getIncentiveId: HelperTypes.GetIncentiveId.Command = async (params) => {
     return this.testIncentiveId.compute({
       rewardToken: params.rewardToken.address,
-      pool: params.poolAddress,
+      pool: params.pool,
       startTime: params.startTime,
       endTime: params.endTime,
       refundee: params.refundee,
       minTickWidth: params.minTickWidth,
       penaltyDecreasePeriod: params.penaltyDecreasePeriod,
+      minPenaltyBips: params.minPenaltyBips,
     })
   }
 
@@ -435,11 +441,12 @@ export class ERC20Helper {
 type IncentiveAdapterFunc = (params: HelperTypes.CreateIncentive.Result) => ContractParams.IncentiveKey
 
 export const incentiveResultToStakeAdapter: IncentiveAdapterFunc = (params) => ({
-  pool: params.poolAddress,
+  pool: params.pool,
   startTime: params.startTime,
   endTime: params.endTime,
   rewardToken: params.rewardToken.address,
   refundee: params.refundee,
   minTickWidth: params.minTickWidth,
   penaltyDecreasePeriod: params.penaltyDecreasePeriod,
+  minPenaltyBips: params.minPenaltyBips,
 })

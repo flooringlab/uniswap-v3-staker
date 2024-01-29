@@ -153,6 +153,7 @@ export const defaultPositionCfg = (
 ) => ({
   minTickWidth: BigNumber.from(tickUpper - tickLower),
   penaltyDecreasePeriod: BigNumber.from(days(1)),
+  minPenaltyBips: BigNumber.from(200),
 })
 
 export const midPositionCfg = (midpoint: number = 0, width: number = 20, feeTier: FeeAmount = FeeAmount.MEDIUM) =>

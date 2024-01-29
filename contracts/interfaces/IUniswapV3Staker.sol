@@ -26,6 +26,7 @@ interface IUniswapV3Staker is IERC721Receiver {
         address refundee;
         uint24 minTickWidth;
         uint32 penaltyDecreasePeriod;
+        uint16 minPenaltyBips;
     }
 
     /// @notice The Uniswap V3 Factory

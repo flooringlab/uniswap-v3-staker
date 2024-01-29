@@ -227,21 +227,29 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         if (isLiquidation && _msgSender().code.length > 0) revert CannotLiquidateByContract();
 
         bytes32 incentiveId = IncentiveId.compute(key);
-        Incentive storage incentive = incentives[incentiveId];
-        _accrueReward(key, incentive);
+        _accrueReward(key, incentives[incentiveId]);
 
         Stake memory stake = stakes[tokenId][incentiveId];
-        uint256 reward = stake.shares * (incentive.rewardPerShare - stake.lastRewardPerShare);
+        uint256 reward = stake.shares * (incentives[incentiveId].rewardPerShare - stake.lastRewardPerShare);
 
         (uint256 ownerEarning, uint256 liquidatorEarning, ) = isLiquidation
-            ? RewardMath.computeRewardDistribution(reward, stake.stakedSince, key.penaltyDecreasePeriod)
+            ? RewardMath.computeRewardDistribution(
+                reward,
+                stake.stakedSince,
+                key.penaltyDecreasePeriod,
+                key.minPenaltyBips
+            )
             : (reward, 0, 0);
 
         --deposits[tokenId].numberOfStakes;
 
-        incentive.totalShares -= stake.shares;
-        // reward is never greater than total reward unclaimed
-        incentive.remainingReward -= (ownerEarning + liquidatorEarning);
+        {
+            Incentive storage incentive = incentives[incentiveId];
+            // remove unstaked shares
+            incentive.totalShares -= stake.shares;
+            // reward is never greater than total reward unclaimed
+            incentive.remainingReward -= (ownerEarning + liquidatorEarning);
+        }
         // this only overflows if a token has a total supply greater than type(uint256).max
         if (isLiquidation) {
             rewards[key.rewardToken][deposit.owner] += ownerEarning;

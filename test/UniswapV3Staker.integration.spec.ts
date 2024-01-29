@@ -77,7 +77,7 @@ describe('integration', async () => {
         startTime,
         endTime,
         rewardToken,
-        poolAddress: context.pool01,
+        pool: context.pool01,
         totalReward,
         ...defaultPositionCfg(),
       })
@@ -469,7 +469,7 @@ describe('integration', async () => {
         startTime,
         endTime,
         rewardToken: context.rewardToken,
-        poolAddress: context.pool01,
+        pool: context.pool01,
         totalReward,
         ...midPositionCfg(midpoint, 20, FeeAmount.MEDIUM),
       })

@@ -1,31 +1,28 @@
-import { BigNumber, Wallet } from 'ethers'
-import { TestERC20 } from '../../typechain-v5'
+import { BigNumber, BigNumberish, Wallet } from 'ethers'
+import { TestERC20, IUniswapV3Staker } from '../../typechain-v5'
 import { FeeAmount } from '../shared'
 
 export module HelperTypes {
   export type CommandFunction<Input, Output> = (input: Input) => Promise<Output>
 
   export module CreateIncentive {
-    export type Args = {
+    type ReplaceBigNumberish<T> = {
+      [K in keyof T]: T[K] extends BigNumberish ? BigNumber : T[K]
+    }
+
+    type CustomArgOverride = {
       rewardToken: TestERC20
-      poolAddress: string
       startTime: number
       endTime?: number
-      totalReward: BigNumber
       refundee?: string
-      minTickWidth: BigNumber
-      penaltyDecreasePeriod: BigNumber
-    }
-    export type Result = {
-      poolAddress: string
-      rewardToken: TestERC20
+      pool: string
       totalReward: BigNumber
-      startTime: number
-      endTime: number
-      refundee: string
-      minTickWidth: BigNumber
-      penaltyDecreasePeriod: BigNumber
     }
+
+    export type Args = Omit<ReplaceBigNumberish<IUniswapV3Staker.IncentiveKeyStruct>, keyof CustomArgOverride> &
+      CustomArgOverride
+
+    export type Result = Required<Args>
 
     export type Command = CommandFunction<Args, Result>
   }
