@@ -230,7 +230,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         Incentive storage incentive = incentives[incentiveId];
         _accrueReward(key, incentive);
 
-        Stake storage stake = stakes[tokenId][incentiveId];
+        Stake memory stake = stakes[tokenId][incentiveId];
         uint256 reward = stake.shares * (incentive.rewardPerShare - stake.lastRewardPerShare);
 
         (uint256 ownerEarning, uint256 liquidatorEarning, ) = isLiquidation
@@ -251,6 +251,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         }
 
         delete stakes[tokenId][incentiveId];
+
+        emit TokenUnstaked(tokenId, incentiveId);
 
         return (liquidatorEarning, ownerEarning, reward - ownerEarning - liquidatorEarning);
     }
