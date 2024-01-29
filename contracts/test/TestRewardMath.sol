@@ -7,26 +7,18 @@ import '../libraries/RewardMath.sol';
 
 /// @dev Test contract for RewardMatrh
 contract TestRewardMath {
-    function computeRewardAmount(
-        uint256 totalRewardUnclaimed,
-        uint160 totalSecondsClaimedX128,
-        uint256 startTime,
+    function computeRewardPerShareDiff(
+        uint256 remainingReward,
+        uint256 totalShares,
         uint256 endTime,
-        uint128 liquidity,
-        uint160 secondsPerLiquidityInsideInitialX128,
-        uint160 secondsPerLiquidityInsideX128,
-        uint32 stakedSince,
+        uint256 lastAccrueTime,
         uint256 currentTime
-    ) public pure returns (uint256 reward, uint160 secondsInsideX128) {
-        (reward, secondsInsideX128) = RewardMath.computeRewardAmount(
-            totalRewardUnclaimed,
-            totalSecondsClaimedX128,
-            startTime,
+    ) internal pure returns (uint256 rewardPerShareDiff) {
+        rewardPerShareDiff = RewardMath.computeRewardPerShareDiff(
+            remainingReward,
+            totalShares,
             endTime,
-            liquidity,
-            secondsPerLiquidityInsideInitialX128,
-            secondsPerLiquidityInsideX128,
-            stakedSince,
+            lastAccrueTime,
             currentTime
         );
     }

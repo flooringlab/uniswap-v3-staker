@@ -42,12 +42,16 @@ interface IUniswapV3Staker is IERC721Receiver {
 
     /// @notice Represents a staking incentive
     /// @param incentiveId The ID of the incentive computed from its parameters
-    /// @return totalRewardUnclaimed The amount of reward token not yet claimed by users
-    /// @return totalSecondsClaimedX128 Total liquidity-seconds claimed, represented as a UQ32.128
-    /// @return numberOfStakes The count of deposits that are currently staked for the incentive
+    /// @return remainingReward The amount of reward token not yet claimed by users
+    /// @return totalShares Total liquidity shares staked
+    /// @return rewardPerShare Reward Per share accumulated at the time of the last update
+    /// @return lastAccrueTime Last time rewardPerShare was updated
     function incentives(
         bytes32 incentiveId
-    ) external view returns (uint256 totalRewardUnclaimed, uint160 totalSecondsClaimedX128, uint96 numberOfStakes);
+    )
+        external
+        view
+        returns (uint256 remainingReward, uint256 totalShares, uint256 rewardPerShare, uint32 lastAccrueTime);
 
     /// @notice Returns information about a deposited NFT
     /// @return owner The owner of the deposited NFT
@@ -61,12 +65,13 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @notice Returns information about a staked liquidity NFT
     /// @param tokenId The ID of the staked token
     /// @param incentiveId The ID of the incentive for which the token is staked
-    /// @return secondsPerLiquidityInsideInitialX128 secondsPerLiquidity represented as a UQ32.128
-    /// @return liquidity The amount of liquidity in the NFT as of the last time the rewards were computed
+    /// @return lastRewardPerShare The last `rewardPerShare` used to calculate the reward of the `tokenId`
+    /// @return shares The amount of liquidity in the NFT
+    /// @return stakedSince The timestamp indicating when the token was staked
     function stakes(
         uint256 tokenId,
         bytes32 incentiveId
-    ) external view returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity, uint32 stakedSince);
+    ) external view returns (uint256 lastRewardPerShare, uint128 shares, uint32 stakedSince);
 
     /// @notice Returns amounts of reward tokens owed to a given address according to the last time all stakes were updated
     /// @param rewardToken The token for which to check rewards
@@ -123,10 +128,11 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param key The key of the incentive
     /// @param tokenId The ID of the token
     /// @return reward The reward accrued to the NFT for the given incentive thus far
+    /// @return currentRewardPerShare current reward per share to compute the reward
     function getRewardInfo(
         IncentiveKey memory key,
         uint256 tokenId
-    ) external returns (uint256 reward, uint160 secondsInsideX128);
+    ) external returns (uint256 reward, uint256 currentRewardPerShare);
 
     /// @notice Event emitted when a liquidity mining incentive has been created
     /// @param rewardToken The token being distributed as a reward
