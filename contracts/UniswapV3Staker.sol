@@ -213,15 +213,18 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     ) external override returns (uint256, uint256, uint256) {
         Deposit memory deposit = deposits[tokenId];
 
-        bool isLiquidation = block.timestamp < key.endTime && _msgSender() != deposit.owner;
-
-        /// before incentive expired, anyone(except Contract Caller) can liquidate the stakes which out of range
-        if (isLiquidation && _msgSender().code.length > 0) revert CannotLiquidateByContract();
-        if (isLiquidation) {
-            /// Stakes cann't be liquidated when it is active
+        bool isLiquidation = false;
+        if (block.timestamp < key.endTime) {
             (, int24 tick, , , , , ) = key.pool.slot0();
-            if (deposit.tickLower <= tick && tick <= deposit.tickUpper) revert CannotLiquidateWhileActive();
+            bool inRange = deposit.tickLower <= tick && tick <= deposit.tickUpper;
+            if (inRange && _msgSender() != deposit.owner) revert CannotLiquidateWhileActive();
+
+            isLiquidation = !inRange;
         }
+
+        // Anyone(except Contract Caller) can liquidate the stakes that are out of range
+        // prevent price manipulation using Flash Loan or something else
+        if (isLiquidation && _msgSender().code.length > 0) revert CannotLiquidateByContract();
 
         bytes32 incentiveId = IncentiveId.compute(key);
         Incentive storage incentive = incentives[incentiveId];
