@@ -152,7 +152,7 @@ export const defaultPositionCfg = (
   tickUpper: number = getMaxTick(TICK_SPACINGS[feeTier]),
 ) => ({
   minTickWidth: BigNumber.from(tickUpper - tickLower),
-  penaltyDecreasePeriod: BigNumber.from(days(1)),
+  penaltyDecayPeriod: BigNumber.from(days(1)),
   minPenaltyBips: BigNumber.from(200),
 })
 

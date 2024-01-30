@@ -236,7 +236,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             ? RewardMath.computeRewardDistribution(
                 reward,
                 stake.stakedSince,
-                key.penaltyDecreasePeriod,
+                key.penaltyDecayPeriod,
                 key.minPenaltyBips
             )
             : (reward, 0, 0);

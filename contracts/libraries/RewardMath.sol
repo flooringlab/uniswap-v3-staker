@@ -26,15 +26,24 @@ library RewardMath {
     function computeRewardDistribution(
         uint256 reward,
         uint32 stakedSince,
-        uint32 penaltyDecreasePeriod,
+        uint32 penaltyDecayPeriod,
         uint16 minPenaltyBips
     ) internal view returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
-        /// penalty decreases exponentially
-        uint256 penalty = Math.min(
-            reward / (2 ** ((block.timestamp - stakedSince + penaltyDecreasePeriod - 1) / penaltyDecreasePeriod)),
-            (reward * minPenaltyBips) / 10000
-        );
+        uint256 timeElapsed = block.timestamp - stakedSince;
 
+        // Initial decay, right shift operation simulates exponential decay by dividing by 2^n
+        uint256 penalty = reward >> (timeElapsed / penaltyDecayPeriod);
+
+        // Calculate the remaining time after the half-life period
+        timeElapsed %= penaltyDecayPeriod;
+
+        // Simulate linear decay for the part not covered by exponential decay
+        penalty = penalty - (FullMath.mulDiv(penalty, timeElapsed, penaltyDecayPeriod) >> 1);
+
+        // Ensure penalty is at least minPenaltyBips percentage of the reward
+        penalty = Math.max(penalty, FullMath.mulDiv(reward, minPenaltyBips, 10000));
+
+        // Calculate liquidatorEarning, refunded, and ownerEarning
         liquidatorEarning = penalty / 2;
         refunded = penalty - liquidatorEarning;
         ownerEarning = reward - penalty;

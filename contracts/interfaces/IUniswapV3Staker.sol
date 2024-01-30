@@ -17,7 +17,7 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param endTime The time when rewards stop accruing
     /// @param refundee The address which receives any remaining reward tokens when the incentive is ended
     /// @param minTickWidth The minimum width that staked positions should be kept
-    /// @param penaltyDecreasePeriod
+    /// @param penaltyDecayPeriod
     struct IncentiveKey {
         IERC20Minimal rewardToken;
         IUniswapV3Pool pool;
@@ -25,7 +25,7 @@ interface IUniswapV3Staker is IERC721Receiver {
         uint256 endTime;
         address refundee;
         uint24 minTickWidth;
-        uint32 penaltyDecreasePeriod;
+        uint32 penaltyDecayPeriod;
         uint16 minPenaltyBips;
     }
 
