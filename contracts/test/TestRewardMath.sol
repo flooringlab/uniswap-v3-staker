@@ -28,14 +28,16 @@ contract TestRewardMath {
         uint256 stakedSince,
         uint256 currentTime,
         uint256 penaltyDecayPeriod,
-        uint256 minPenaltyBips
+        uint256 minPenaltyBips,
+        uint256 liquidationBonusBips
     ) public pure returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
         (ownerEarning, liquidatorEarning, refunded) = RewardMath.computeRewardDistribution(
             reward,
             stakedSince,
             currentTime,
             penaltyDecayPeriod,
-            minPenaltyBips
+            minPenaltyBips,
+            liquidationBonusBips
         );
     }
 }

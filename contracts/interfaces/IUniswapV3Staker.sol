@@ -16,17 +16,25 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param startTime The time when the incentive program begins
     /// @param endTime The time when rewards stop accruing
     /// @param refundee The address which receives any remaining reward tokens when the incentive is ended
-    /// @param minTickWidth The minimum width that staked positions should be kept
-    /// @param penaltyDecayPeriod
     struct IncentiveKey {
         IERC20Minimal rewardToken;
         IUniswapV3Pool pool;
         uint256 startTime;
         uint256 endTime;
         address refundee;
+    }
+
+    /// @param minTickWidth The minimum width that staked positions should be kept
+    /// @param penaltyDecayPeriod The period over which the penalty for liquidation decays
+    /// @param minPenaltyBips The minimum penalty as a percentage of the reward when liquidating
+    /// @param minExitDuration The minimum duration for which staked positions should be kept
+    /// @param liquidationBonusBips The bonus as a percentage of the reward for liquidators
+    struct IncentiveConfig {
         uint24 minTickWidth;
         uint32 penaltyDecayPeriod;
         uint16 minPenaltyBips;
+        uint32 minExitDuration;
+        uint16 liquidationBonusBips;
     }
 
     /// @notice The Uniswap V3 Factory
@@ -53,6 +61,21 @@ interface IUniswapV3Staker is IERC721Receiver {
         external
         view
         returns (uint256 remainingReward, uint256 totalShares, uint256 rewardPerShare, uint32 lastAccrueTime);
+
+    /// @notice Represents a staking incentive config
+    /// @param incentiveId The ID of the incentive computed from its parameters
+    function incentiveConfigs(
+        bytes32 incentiveId
+    )
+        external
+        view
+        returns (
+            uint24 minTickWidth,
+            uint32 penaltyDecayPeriod,
+            uint16 minPenaltyBips,
+            uint32 minExitDuration,
+            uint16 liquidationBonusBips
+        );
 
     /// @notice Returns information about a deposited NFT
     /// @return owner The owner of the deposited NFT
@@ -82,13 +105,16 @@ interface IUniswapV3Staker is IERC721Receiver {
 
     /// @notice Creates a new liquidity mining incentive program
     /// @param key Details of the incentive to create
+    /// @param config Config of the incentive to create
     /// @param reward The amount of reward tokens to be distributed
-    function createIncentive(IncentiveKey memory key, uint256 reward) external;
+    function createIncentive(IncentiveKey memory key, IncentiveConfig memory config, uint256 reward) external;
 
     /// @notice Ends an incentive after the incentive end time has passed and all stakes have been withdrawn
     /// @param key Details of the incentive to end
     /// @return refund The remaining reward tokens when the incentive is ended
     function endIncentive(IncentiveKey memory key) external returns (uint256 refund);
+
+    function setIncentiveConfig(bytes32 incentiveId, IncentiveConfig memory config) external;
 
     /// @notice Transfers ownership of a deposit from the sender to the given recipient
     /// @param tokenId The ID of the token (and the deposit) to transfer
@@ -197,6 +223,7 @@ interface IUniswapV3Staker is IERC721Receiver {
 
     error CannotLiquidateByContract();
     error CannotLiquidateWhileActive();
+    error UnstakeRequireMinDuration();
 
     error StakeNotExist();
     error IncentiveNotStarted();

@@ -14,11 +14,11 @@ import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
 
 import '@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
 /// @title Uniswap V3 canonical staking interface
-contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradeable, OwnableUpgradeable {
+contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradeable, AccessControlUpgradeable {
     /// @notice Represents a staking incentive
     struct Incentive {
         uint256 remainingReward;
@@ -52,18 +52,20 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     /// @inheritdoc IUniswapV3Staker
     uint256 public immutable override maxIncentiveDuration;
 
-    /// @dev bytes32 refers to the return value of IncentiveId.compute
-    mapping(bytes32 => Incentive) public override incentives;
-
-    /// @dev deposits[tokenId] => Deposit
-    mapping(uint256 => Deposit) public override deposits;
-
-    /// @dev stakes[tokenId][incentiveHash] => Stake
-    mapping(uint256 => mapping(bytes32 => Stake)) public override stakes;
-
-    /// @dev rewards[rewardToken][owner] => uint256
     /// @inheritdoc IUniswapV3Staker
-    mapping(IERC20Minimal => mapping(address => uint256)) public override rewards;
+    mapping(bytes32 incentiveId => Incentive incentive) public override incentives;
+
+    /// @inheritdoc IUniswapV3Staker
+    mapping(bytes32 incentiveId => IncentiveConfig incentiveConfig) public override incentiveConfigs;
+
+    /// @inheritdoc IUniswapV3Staker
+    mapping(uint256 tokenId => Deposit deposit) public override deposits;
+
+    /// @inheritdoc IUniswapV3Staker
+    mapping(uint256 tokenId => mapping(bytes32 incentiveId => Stake stake)) public override stakes;
+
+    /// @inheritdoc IUniswapV3Staker
+    mapping(IERC20Minimal rewardToken => mapping(address owner => uint256)) public override rewards;
 
     /// @param _factory the Uniswap V3 factory
     /// @param _nonfungiblePositionManager the NFT position manager contract address
@@ -84,23 +86,26 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     }
 
     /// required by the OZ UUPS module
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /// @dev just declare this as payable to reduce gas and bytecode
     function initialize() public payable initializer {
-        __Ownable_init(_msgSender());
+        __AccessControl_init();
         __UUPSUpgradeable_init();
         __Multicall_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function createIncentive(IncentiveKey memory key, uint256 reward) external override {
+    function createIncentive(IncentiveKey memory key, IncentiveConfig memory config, uint256 reward) external override {
         if (reward <= 0) revert RewardMustBePositive();
         if (block.timestamp > key.startTime) revert StartTimeMustBeNowOrFuture();
         if (key.startTime - block.timestamp > maxIncentiveStartLeadTime) revert StartTimeTooFarInFuture();
         if (key.startTime >= key.endTime) revert StartTimeMustBeforeEndTime();
         if (key.endTime - key.startTime > maxIncentiveDuration) revert IncentiveDurationTooLong();
-        if (key.minTickWidth == 0) revert MinTickWidthMustBePositive();
+
+        if (config.minTickWidth == 0) revert MinTickWidthMustBePositive();
 
         bytes32 incentiveId = IncentiveId.compute(key);
 
@@ -108,6 +113,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         incentives[incentiveId].lastAccrueTime = uint32(block.timestamp);
 
         TransferHelperExtended.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward);
+
+        _grantRole(incentiveId, _msgSender());
 
         emit IncentiveCreated(key.rewardToken, key.pool, key.startTime, key.endTime, key.refundee, reward);
     }
@@ -131,6 +138,13 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         // note we never clear totalSecondsClaimedX128
 
         emit IncentiveEnded(incentiveId, refund);
+    }
+
+    function setIncentiveConfig(
+        bytes32 incentiveId,
+        IncentiveConfig memory config
+    ) external override onlyRole(incentiveId) {
+        incentiveConfigs[incentiveId] = config;
     }
 
     /// @notice Upon receiving a Uniswap V3 ERC721, creates the token deposit setting owner to `from`. Also stakes token
@@ -212,12 +226,19 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         uint256 tokenId
     ) external override returns (uint256, uint256, uint256) {
         Deposit memory deposit = deposits[tokenId];
+        bytes32 incentiveId = IncentiveId.compute(key);
 
         bool isLiquidation = false;
         if (block.timestamp < key.endTime) {
             (, int24 tick, , , , , ) = key.pool.slot0();
             bool inRange = deposit.tickLower <= tick && tick <= deposit.tickUpper;
             if (inRange && _msgSender() != deposit.owner) revert CannotLiquidateWhileActive();
+
+            if (
+                inRange &&
+                (block.timestamp - stakes[tokenId][incentiveId].stakedSince) <
+                incentiveConfigs[incentiveId].minExitDuration
+            ) revert UnstakeRequireMinDuration();
 
             isLiquidation = !inRange;
         }
@@ -226,11 +247,9 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         // prevent price manipulation using Flash Loan or something else
         if (isLiquidation && _msgSender().code.length > 0) revert CannotLiquidateByContract();
 
-        bytes32 incentiveId = IncentiveId.compute(key);
         _accrueReward(key, incentives[incentiveId]);
 
         (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) = _computeAndDistributeReward(
-            key,
             incentiveId,
             tokenId,
             isLiquidation
@@ -323,9 +342,10 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         );
 
         {
+            IncentiveConfig memory incentiveConfig = incentiveConfigs[incentiveId];
             if (pool != key.pool) revert PoolNotMatched();
             if (positionInfo.liquidity == 0) revert CannotStakeZeroLiquidity();
-            if (key.minTickWidth > uint24(tickUpper - tickLower)) revert PositionRangeTooNarrow();
+            if (incentiveConfig.minTickWidth > uint24(tickUpper - tickLower)) revert PositionRangeTooNarrow();
             /// Position should include current tick
             (, int24 tick, , , , , ) = pool.slot0();
             if (tick < tickLower || tick > tickUpper) revert CurrentTickMustWithinRange();
@@ -360,7 +380,6 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     }
 
     function _computeAndDistributeReward(
-        IncentiveKey memory key,
         bytes32 incentiveId,
         uint256 tokenId,
         bool isLiquidation
@@ -368,14 +387,17 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         Stake memory stake = stakes[tokenId][incentiveId];
         uint256 reward = stake.shares * (incentives[incentiveId].rewardPerShare - stake.lastRewardPerShare);
 
+        IncentiveConfig memory incentiveConfig = incentiveConfigs[incentiveId];
+
         return
             isLiquidation
                 ? RewardMath.computeRewardDistribution(
                     reward,
                     stake.stakedSince,
                     block.timestamp,
-                    key.penaltyDecayPeriod,
-                    key.minPenaltyBips
+                    incentiveConfig.penaltyDecayPeriod,
+                    incentiveConfig.minPenaltyBips,
+                    incentiveConfig.liquidationBonusBips
                 )
                 : (reward, 0, 0);
     }

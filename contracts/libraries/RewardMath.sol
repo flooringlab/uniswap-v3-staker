@@ -28,7 +28,8 @@ library RewardMath {
         uint256 stakedSince,
         uint256 currentTime,
         uint256 penaltyDecayPeriod,
-        uint256 minPenaltyBips
+        uint256 minPenaltyBips,
+        uint256 liquidationBonusBips
     ) internal pure returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
         uint256 timeElapsed = currentTime - stakedSince;
 
@@ -45,7 +46,7 @@ library RewardMath {
         penalty = Math.max(penalty, FullMath.mulDiv(reward, minPenaltyBips, 10000));
 
         // Calculate liquidatorEarning, refunded, and ownerEarning
-        liquidatorEarning = penalty / 2;
+        liquidatorEarning = FullMath.mulDiv(penalty, liquidationBonusBips, 10000);
         refunded = penalty - liquidatorEarning;
         ownerEarning = reward - penalty;
     }
