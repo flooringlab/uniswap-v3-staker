@@ -13,7 +13,7 @@ contract TestRewardMath {
         uint256 endTime,
         uint256 lastAccrueTime,
         uint256 currentTime
-    ) internal pure returns (uint256 rewardPerShareDiff) {
+    ) public pure returns (uint256 rewardPerShareDiff) {
         rewardPerShareDiff = RewardMath.computeRewardPerShareDiff(
             remainingReward,
             totalShares,
@@ -25,13 +25,15 @@ contract TestRewardMath {
 
     function computeRewardDistribution(
         uint256 reward,
-        uint32 stakedSince,
-        uint32 penaltyDecayPeriod,
-        uint16 minPenaltyBips
-    ) internal view returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
+        uint256 stakedSince,
+        uint256 currentTime,
+        uint256 penaltyDecayPeriod,
+        uint256 minPenaltyBips
+    ) public pure returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
         (ownerEarning, liquidatorEarning, refunded) = RewardMath.computeRewardDistribution(
             reward,
             stakedSince,
+            currentTime,
             penaltyDecayPeriod,
             minPenaltyBips
         );

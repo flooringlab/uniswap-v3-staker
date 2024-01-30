@@ -25,11 +25,12 @@ library RewardMath {
 
     function computeRewardDistribution(
         uint256 reward,
-        uint32 stakedSince,
-        uint32 penaltyDecayPeriod,
-        uint16 minPenaltyBips
-    ) internal view returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
-        uint256 timeElapsed = block.timestamp - stakedSince;
+        uint256 stakedSince,
+        uint256 currentTime,
+        uint256 penaltyDecayPeriod,
+        uint256 minPenaltyBips
+    ) internal pure returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
+        uint256 timeElapsed = currentTime - stakedSince;
 
         // Initial decay, right shift operation simulates exponential decay by dividing by 2^n
         uint256 penalty = reward >> (timeElapsed / penaltyDecayPeriod);

@@ -229,24 +229,17 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         bytes32 incentiveId = IncentiveId.compute(key);
         _accrueReward(key, incentives[incentiveId]);
 
-        Stake memory stake = stakes[tokenId][incentiveId];
-        uint256 reward = stake.shares * (incentives[incentiveId].rewardPerShare - stake.lastRewardPerShare);
-
-        (uint256 ownerEarning, uint256 liquidatorEarning, ) = isLiquidation
-            ? RewardMath.computeRewardDistribution(
-                reward,
-                stake.stakedSince,
-                key.penaltyDecayPeriod,
-                key.minPenaltyBips
-            )
-            : (reward, 0, 0);
-
-        --deposits[tokenId].numberOfStakes;
+        (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) = _computeAndDistributeReward(
+            key,
+            incentiveId,
+            tokenId,
+            isLiquidation
+        );
 
         {
             Incentive storage incentive = incentives[incentiveId];
             // remove unstaked shares
-            incentive.totalShares -= stake.shares;
+            incentive.totalShares -= stakes[tokenId][incentiveId].shares;
             // reward is never greater than total reward unclaimed
             incentive.remainingReward -= (ownerEarning + liquidatorEarning);
         }
@@ -258,11 +251,12 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             rewards[key.rewardToken][deposit.owner] += ownerEarning + liquidatorEarning;
         }
 
+        --deposits[tokenId].numberOfStakes;
         delete stakes[tokenId][incentiveId];
 
         emit TokenUnstaked(tokenId, incentiveId);
 
-        return (liquidatorEarning, ownerEarning, reward - ownerEarning - liquidatorEarning);
+        return (liquidatorEarning, ownerEarning, refunded);
     }
 
     /// @inheritdoc IUniswapV3Staker
@@ -363,5 +357,26 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         );
         // update the last accural time
         incentive.lastAccrueTime = uint32(block.timestamp);
+    }
+
+    function _computeAndDistributeReward(
+        IncentiveKey memory key,
+        bytes32 incentiveId,
+        uint256 tokenId,
+        bool isLiquidation
+    ) private view returns (uint256, uint256, uint256) {
+        Stake memory stake = stakes[tokenId][incentiveId];
+        uint256 reward = stake.shares * (incentives[incentiveId].rewardPerShare - stake.lastRewardPerShare);
+
+        return
+            isLiquidation
+                ? RewardMath.computeRewardDistribution(
+                    reward,
+                    stake.stakedSince,
+                    block.timestamp,
+                    key.penaltyDecayPeriod,
+                    key.minPenaltyBips
+                )
+                : (reward, 0, 0);
     }
 }
