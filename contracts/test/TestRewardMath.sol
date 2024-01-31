@@ -7,6 +7,14 @@ import '../libraries/RewardMath.sol';
 
 /// @dev Test contract for RewardMatrh
 contract TestRewardMath {
+    function computeRewardAmount(
+        uint256 shares,
+        uint256 lastRewardPerShare,
+        uint256 currentRewardPerShare
+    ) public pure returns (uint256 reward) {
+        reward = RewardMath.computeRewardAmount(shares, lastRewardPerShare, currentRewardPerShare);
+    }
+
     function computeRewardPerShareDiff(
         uint256 remainingReward,
         uint256 totalShares,

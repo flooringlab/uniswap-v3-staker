@@ -17,6 +17,7 @@ export module HelperTypes {
       refundee?: string
       pool: string
       totalReward: BigNumber
+      config: ReplaceBigNumberish<IUniswapV3Staker.IncentiveConfigStruct>
     }
 
     export type Args = Omit<ReplaceBigNumberish<IUniswapV3Staker.IncentiveKeyStruct>, keyof CustomArgOverride> &

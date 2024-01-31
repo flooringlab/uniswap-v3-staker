@@ -317,7 +317,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
                 block.timestamp
             );
 
-        reward = stake.shares * (currentRewardPerShare - stake.lastRewardPerShare);
+        reward = RewardMath.computeRewardAmount(stake.shares, stake.lastRewardPerShare, currentRewardPerShare);
     }
 
     /// @dev Stakes a deposited token without doing an ownership check
@@ -385,7 +385,12 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         bool isLiquidation
     ) private view returns (uint256, uint256, uint256) {
         Stake memory stake = stakes[tokenId][incentiveId];
-        uint256 reward = stake.shares * (incentives[incentiveId].rewardPerShare - stake.lastRewardPerShare);
+
+        uint256 reward = RewardMath.computeRewardAmount(
+            stake.shares,
+            stake.lastRewardPerShare,
+            incentives[incentiveId].rewardPerShare
+        );
 
         IncentiveConfig memory incentiveConfig = incentiveConfigs[incentiveId];
 

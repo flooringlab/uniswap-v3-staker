@@ -117,10 +117,8 @@ export class HelperCommands {
         rewardToken: params.rewardToken.address,
         ...times,
         refundee: params.refundee || incentiveCreator.address,
-        minTickWidth: params.minTickWidth,
-        penaltyDecayPeriod: params.penaltyDecayPeriod,
-        minPenaltyBips: params.minPenaltyBips,
       },
+      params.config,
       params.totalReward,
     )
 
@@ -130,9 +128,7 @@ export class HelperCommands {
       pool: params.pool,
       totalReward: params.totalReward,
       refundee: params.refundee || incentiveCreator.address,
-      minTickWidth: params.minTickWidth,
-      penaltyDecayPeriod: params.penaltyDecayPeriod,
-      minPenaltyBips: params.minPenaltyBips,
+      config: params.config,
     }
   }
 
@@ -296,9 +292,6 @@ export class HelperCommands {
           rewardToken: rewardToken.address,
           pool: params.createIncentiveResult.pool,
           refundee: params.createIncentiveResult.refundee,
-          minTickWidth: params.createIncentiveResult.minTickWidth,
-          penaltyDecayPeriod: params.createIncentiveResult.penaltyDecayPeriod,
-          minPenaltyBips: params.createIncentiveResult.minPenaltyBips,
         }),
       )
     ).wait()
@@ -327,9 +320,6 @@ export class HelperCommands {
       startTime: params.startTime,
       endTime: params.endTime,
       refundee: params.refundee,
-      minTickWidth: params.minTickWidth,
-      penaltyDecayPeriod: params.penaltyDecayPeriod,
-      minPenaltyBips: params.minPenaltyBips,
     })
   }
 
@@ -446,7 +436,4 @@ export const incentiveResultToStakeAdapter: IncentiveAdapterFunc = (params) => (
   endTime: params.endTime,
   rewardToken: params.rewardToken.address,
   refundee: params.refundee,
-  minTickWidth: params.minTickWidth,
-  penaltyDecayPeriod: params.penaltyDecayPeriod,
-  minPenaltyBips: params.minPenaltyBips,
 })

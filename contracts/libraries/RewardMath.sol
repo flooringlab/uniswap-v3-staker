@@ -7,6 +7,14 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 /// @title Math for computing rewards
 /// @notice Allows computing rewards given some parameters of stakes and incentives
 library RewardMath {
+    function computeRewardAmount(
+        uint256 shares,
+        uint256 lastRewardPerShare,
+        uint256 currentRewardPerShare
+    ) internal pure returns (uint256 reward) {
+        reward = shares * (currentRewardPerShare - lastRewardPerShare);
+    }
+
     function computeRewardPerShareDiff(
         uint256 remainingReward,
         uint256 totalShares,
