@@ -92,4 +92,49 @@ describe('unit/RewardMath', () => {
     expect(liquidatorEarning).to.eq(BigNumber.from(150))
     expect(refunded).to.eq(BigNumber.from(600))
   })
+
+  it('exp decay as time goes', async () => {
+    const { ownerEarning, liquidatorEarning, refunded } = await rewardMath.computeRewardDistribution(
+      1000,
+      /*stakedSince*/ days(1),
+      /*currentTime*/ days(3),
+      /*penaltyDecayPeriod*/ days(1),
+      100,
+      2000,
+    )
+    // 1000 * 0.75
+    expect(ownerEarning).to.eq(BigNumber.from(750))
+    expect(liquidatorEarning).to.eq(BigNumber.from(50))
+    expect(refunded).to.eq(BigNumber.from(200))
+  })
+
+  it('exp and linear decay as time goes', async () => {
+    const { ownerEarning, liquidatorEarning, refunded } = await rewardMath.computeRewardDistribution(
+      1000,
+      /*stakedSince*/ days(1),
+      /*currentTime*/ days(4.8),
+      /*penaltyDecayPeriod*/ days(1),
+      100,
+      2000,
+    )
+    // 1000 * 0.75
+    expect(ownerEarning).to.eq(BigNumber.from(925))
+    expect(liquidatorEarning).to.eq(BigNumber.from(15))
+    expect(refunded).to.eq(BigNumber.from(60))
+  })
+
+  it('mininum penalty', async () => {
+    const { ownerEarning, liquidatorEarning, refunded } = await rewardMath.computeRewardDistribution(
+      1000,
+      /*stakedSince*/ days(1),
+      /*currentTime*/ days(8),
+      /*penaltyDecayPeriod*/ days(1),
+      100,
+      2000,
+    )
+    // 1000 * 0.75
+    expect(ownerEarning).to.eq(BigNumber.from(990))
+    expect(liquidatorEarning).to.eq(BigNumber.from(2))
+    expect(refunded).to.eq(BigNumber.from(8))
+  })
 })
