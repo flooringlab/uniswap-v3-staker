@@ -13,7 +13,7 @@ import {
   ActorFixture,
   erc20Wrap,
   makeTimestamps,
-  defaultPositionCfg,
+  defaultIncentiveCfg,
 } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
 import { HelperCommands, ERC20Helper } from '../helpers'
@@ -64,7 +64,7 @@ describe('unit/Incentives', async () => {
             startTime: params.startTime || startTime,
             endTime: params.endTime || endTime,
             refundee: params.refundee || incentiveCreator.address,
-            ...defaultPositionCfg(),
+            ...defaultIncentiveCfg(),
           },
           totalReward,
         )
@@ -104,7 +104,7 @@ describe('unit/Incentives', async () => {
           startTime: timestamps.startTime,
           endTime: timestamps.endTime,
           refundee: incentiveCreator.address,
-          ...defaultPositionCfg(),
+          ...defaultIncentiveCfg(),
         })
 
         const incentive = await context.staker.incentives(incentiveId)
@@ -122,7 +122,7 @@ describe('unit/Incentives', async () => {
           startTime: timestamps.startTime,
           endTime: timestamps.endTime,
           refundee: incentiveCreator.address,
-          ...defaultPositionCfg(),
+          ...defaultIncentiveCfg(),
         })
         const { totalRewardUnclaimed, totalSecondsClaimedX128, numberOfStakes } =
           await context.staker.incentives(incentiveId)
@@ -139,7 +139,7 @@ describe('unit/Incentives', async () => {
           rewardToken: rewardToken.address,
           refundee: incentiveCreator.address,
           pool: context.pool01,
-          ...defaultPositionCfg(),
+          ...defaultIncentiveCfg(),
         }
         await erc20Helper.ensureBalancesAndApprovals(actors.lpUser0(), rewardToken, BN(100), context.staker.address)
         await context.staker.connect(actors.lpUser0()).createIncentive(incentiveKey, 100)
@@ -192,7 +192,7 @@ describe('unit/Incentives', async () => {
               startTime,
               endTime,
               refundee: incentiveCreator.address,
-              ...defaultPositionCfg(),
+              ...defaultIncentiveCfg(),
             },
             totalReward,
           ),
@@ -251,7 +251,7 @@ describe('unit/Incentives', async () => {
                 pool: context.pool01,
                 refundee: incentiveCreator.address,
                 ...makeTimestamps(now, 1_000),
-                ...defaultPositionCfg(),
+                ...defaultIncentiveCfg(),
               },
               BNe18(0),
             ),
@@ -273,7 +273,7 @@ describe('unit/Incentives', async () => {
         rewardToken: context.rewardToken,
         poolAddress: context.poolObj.address,
         totalReward,
-        ...defaultPositionCfg(),
+        ...defaultIncentiveCfg(),
       })
 
       subject = async (params: Partial<ContractParams.EndIncentive> = {}) => {
@@ -283,7 +283,7 @@ describe('unit/Incentives', async () => {
           startTime: params.startTime || timestamps.startTime,
           endTime: params.endTime || timestamps.endTime,
           refundee: incentiveCreator.address,
-          ...defaultPositionCfg(),
+          ...defaultIncentiveCfg(),
         })
       }
     })

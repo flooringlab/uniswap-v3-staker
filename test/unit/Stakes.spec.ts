@@ -16,7 +16,7 @@ import {
   ActorFixture,
   makeTimestamps,
   maxGas,
-  defaultPositionCfg,
+  defaultIncentiveCfg,
 } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
 import { HelperCommands, ERC20Helper, incentiveResultToStakeAdapter } from '../helpers'
@@ -91,7 +91,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
-        ...defaultPositionCfg(),
+        ...defaultIncentiveCfg(),
       }
 
       incentiveId = await helpers.getIncentiveId(await helpers.createIncentiveFlow(incentiveArgs))
@@ -103,7 +103,7 @@ describe('unit/Stakes', () => {
             pool: context.pool01,
             rewardToken: context.rewardToken.address,
             ...timestamps,
-            ...defaultPositionCfg(),
+            ...defaultIncentiveCfg(),
           },
           _tokenId,
         )
@@ -239,7 +239,7 @@ describe('unit/Stakes', () => {
               pool: context.pool01,
               rewardToken: context.rewardToken.address,
               ...timestamps,
-              ...defaultPositionCfg(),
+              ...defaultIncentiveCfg(),
             },
             otherTokenId,
           ),
@@ -257,7 +257,7 @@ describe('unit/Stakes', () => {
               rewardToken: context.rewardToken.address,
               ...timestamps,
               startTime: timestamps.startTime + 10,
-              ...defaultPositionCfg(),
+              ...defaultIncentiveCfg(),
             },
             tokenId,
           ),
@@ -301,7 +301,7 @@ describe('unit/Stakes', () => {
         rewardToken: context.rewardToken.address,
         pool: context.pool01,
         ...timestamps,
-        ...defaultPositionCfg(),
+        ...defaultIncentiveCfg(),
       }
 
       incentiveId = await helpers.getIncentiveId(
@@ -310,7 +310,7 @@ describe('unit/Stakes', () => {
           totalReward,
           poolAddress: context.poolObj.address,
           ...timestamps,
-          ...defaultPositionCfg(),
+          ...defaultIncentiveCfg(),
         }),
       )
 
@@ -374,7 +374,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
-        ...defaultPositionCfg(),
+        ...defaultIncentiveCfg(),
       })
 
       await Time.setAndMine(timestamps.startTime + 1)
@@ -395,7 +395,7 @@ describe('unit/Stakes', () => {
           rewardToken: context.rewardToken.address,
           pool: context.pool01,
           ...timestamps,
-          ...defaultPositionCfg(),
+          ...defaultIncentiveCfg(),
         },
         tokenId,
       )
@@ -496,7 +496,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
-        ...defaultPositionCfg(),
+        ...defaultIncentiveCfg(),
       })
 
       await erc20Helper.ensureBalancesAndApprovals(
@@ -532,7 +532,7 @@ describe('unit/Stakes', () => {
           rewardToken: context.rewardToken.address,
           pool: context.pool01,
           ...timestamps,
-          ...defaultPositionCfg(),
+          ...defaultIncentiveCfg(),
         },
         tokenId,
       )
@@ -546,7 +546,7 @@ describe('unit/Stakes', () => {
             pool: context.pool01,
             rewardToken: context.rewardToken.address,
             ...timestamps,
-            ...defaultPositionCfg(),
+            ...defaultIncentiveCfg(),
           },
           tokenId,
         )
@@ -648,7 +648,7 @@ describe('unit/Stakes', () => {
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
-        ...defaultPositionCfg(FeeAmount.MEDIUM, 0, 10 * TICK_SPACINGS[FeeAmount.MEDIUM]),
+        ...defaultIncentiveCfg(FeeAmount.MEDIUM, 0, 10 * TICK_SPACINGS[FeeAmount.MEDIUM]),
       })
       incentiveId = await helpers.getIncentiveId(incentive)
       await Time.setAndMine(timestamps.startTime + 1)

@@ -19,8 +19,8 @@ import {
   getCurrentTick,
   BNe,
   mintPosition,
-  defaultPositionCfg,
-  midPositionCfg,
+  defaultIncentiveCfg,
+  midIncentiveCfg,
 } from './shared'
 import { createTimeMachine } from './shared/time'
 import { ERC20Helper, HelperCommands, incentiveResultToStakeAdapter } from './helpers'
@@ -79,7 +79,7 @@ describe('integration', async () => {
         rewardToken,
         pool: context.pool01,
         totalReward,
-        ...defaultPositionCfg(),
+        ...defaultIncentiveCfg(),
       })
 
       const params = {
@@ -471,7 +471,7 @@ describe('integration', async () => {
         rewardToken: context.rewardToken,
         pool: context.pool01,
         totalReward,
-        ...midPositionCfg(midpoint, 20, FeeAmount.MEDIUM),
+        ...midIncentiveCfg(midpoint, 20, FeeAmount.MEDIUM),
       })
 
       return {

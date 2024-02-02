@@ -15,7 +15,7 @@ import {
   ActorFixture,
   makeTimestamps,
   maxGas,
-  defaultPositionCfg,
+  defaultIncentiveCfg,
 } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
 import { HelperCommands, ERC20Helper, incentiveResultToStakeAdapter } from '../helpers'
@@ -103,10 +103,10 @@ describe('unit/Deposits', () => {
 
       createIncentiveResult = await helpers.createIncentiveFlow({
         rewardToken: context.rewardToken,
-        poolAddress: context.poolObj.address,
+        pool: context.poolObj.address,
         startTime,
         totalReward,
-        ...defaultPositionCfg(),
+        config: defaultIncentiveCfg(),
       })
 
       await Time.setAndMine(startTime + 1)
@@ -156,7 +156,7 @@ describe('unit/Deposits', () => {
         poolAddress: context.poolObj.address,
         startTime: createIncentiveResult.startTime + 100,
         totalReward,
-        ...defaultPositionCfg(),
+        ...defaultIncentiveCfg(),
       })
 
       await Time.setAndMine(createIncentiveResult2.startTime)
@@ -251,9 +251,9 @@ describe('unit/Deposits', () => {
       const incentive = await helpers.createIncentiveFlow({
         rewardToken,
         totalReward,
-        poolAddress: context.poolObj.address,
+        pool: context.poolObj.address,
         ...timestamps,
-        ...defaultPositionCfg(),
+        config: defaultIncentiveCfg(),
       })
 
       const incentiveKey: ContractParams.IncentiveKey = incentiveResultToStakeAdapter(incentive)
@@ -285,7 +285,7 @@ describe('unit/Deposits', () => {
           startTime: timestamps.startTime,
           endTime: timestamps.endTime,
           refundee: incentiveCreator.address,
-          ...defaultPositionCfg(),
+          ...defaultIncentiveCfg(),
         })
         await Time.set(timestamps.startTime + 10)
         const stakeBefore = await context.staker.stakes(tokenId, incentiveId)
@@ -402,9 +402,9 @@ describe('unit/Deposits', () => {
         const incentiveParams: HelperTypes.CreateIncentive.Args = {
           rewardToken: context.rewardToken,
           totalReward,
-          poolAddress: context.poolObj.address,
+          pool: context.poolObj.address,
           ...timestamps,
-          ...defaultPositionCfg(),
+          config: defaultIncentiveCfg(),
         }
         const incentive = await helpers.createIncentiveFlow(incentiveParams)
         await Time.setAndMine(timestamps.startTime + 1)

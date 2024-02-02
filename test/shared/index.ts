@@ -146,7 +146,7 @@ export const makeTimestamps = (n: number, duration: number = 1_000) => ({
   endTime: n + 100 + duration,
 })
 
-export const defaultPositionCfg = (
+export const defaultIncentiveCfg = (
   feeTier: FeeAmount = FeeAmount.MEDIUM,
   tickLower: number = getMinTick(TICK_SPACINGS[feeTier]),
   tickUpper: number = getMaxTick(TICK_SPACINGS[feeTier]),
@@ -154,10 +154,12 @@ export const defaultPositionCfg = (
   minTickWidth: BigNumber.from(tickUpper - tickLower),
   penaltyDecayPeriod: BigNumber.from(days(1)),
   minPenaltyBips: BigNumber.from(200),
+  minExitDuration: BigNumber.from(days(0.5)),
+  liquidationBonusBips: BigNumber.from(3000),
 })
 
-export const midPositionCfg = (midpoint: number = 0, width: number = 20, feeTier: FeeAmount = FeeAmount.MEDIUM) =>
-  defaultPositionCfg(
+export const midIncentiveCfg = (midpoint: number = 0, width: number = 20, feeTier: FeeAmount = FeeAmount.MEDIUM) =>
+  defaultIncentiveCfg(
     feeTier,
     midpoint - (width / 2) * TICK_SPACINGS[feeTier],
     midpoint + (width / 2) * TICK_SPACINGS[feeTier],

@@ -14,7 +14,7 @@ import {
   maxGas,
   defaultTicksArray,
   expect,
-  defaultPositionCfg,
+  defaultIncentiveCfg,
 } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
 import { HelperCommands, ERC20Helper, incentiveResultToStakeAdapter } from '../helpers'
@@ -75,7 +75,7 @@ describe('unit/Multicall', () => {
         rewardToken: context.rewardToken.address,
         refundee: incentiveCreator.address,
         ...makeTimestamps(currentTime + 100),
-        ...defaultPositionCfg(),
+        ...defaultIncentiveCfg(),
       },
       totalReward,
     ])
@@ -102,7 +102,7 @@ describe('unit/Multicall', () => {
       poolAddress: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),
-      ...defaultPositionCfg(),
+      ...defaultIncentiveCfg(),
     }
 
     const incentive0 = await helpers.createIncentiveFlow(incentiveParams)
@@ -138,7 +138,7 @@ describe('unit/Multicall', () => {
       refundee: actors.incentiveCreator().address,
       totalReward: BN(10000),
       poolAddress: context.pool01,
-      ...defaultPositionCfg(),
+      ...defaultIncentiveCfg(),
     })
     await helpers.getIncentiveId(incentive0)
     const incentive1 = await helpers.createIncentiveFlow({
@@ -148,7 +148,7 @@ describe('unit/Multicall', () => {
       refundee: actors.incentiveCreator().address,
       totalReward: BN(10000),
       poolAddress: context.pool01,
-      ...defaultPositionCfg(),
+      ...defaultIncentiveCfg(),
     })
     await helpers.getIncentiveId(incentive1)
 
@@ -191,7 +191,7 @@ describe('unit/Multicall', () => {
       poolAddress: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),
-      ...defaultPositionCfg(),
+      ...defaultIncentiveCfg(),
     })
 
     const params: HelperTypes.MintDepositStake.Args = {
