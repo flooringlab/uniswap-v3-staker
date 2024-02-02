@@ -22,11 +22,11 @@ library RewardMath {
         uint256 lastAccrueTime,
         uint256 currentTime
     ) internal pure returns (uint256 rewardPerShareDiff) {
-        uint256 accruedReward = FullMath.mulDiv(
-            remainingReward,
-            (currentTime - lastAccrueTime),
-            (endTime - lastAccrueTime)
-        );
+        if (totalShares == 0) return 0;
+
+        uint256 accruedReward = endTime <= lastAccrueTime
+            ? 0
+            : FullMath.mulDiv(remainingReward, (currentTime - lastAccrueTime), (endTime - lastAccrueTime));
 
         return accruedReward / totalShares;
     }
