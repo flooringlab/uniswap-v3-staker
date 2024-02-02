@@ -75,7 +75,7 @@ describe('unit/RewardMath', () => {
     )
     expect(ownerEarning).to.eq(BigNumber.from(0))
     expect(liquidatorEarning).to.eq(BigNumber.from(200))
-    expect(refunded).to.eq(BigNumber.from(8000))
+    expect(refunded).to.eq(BigNumber.from(800))
   })
 
   it('linear decay within one half life period', async () => {
@@ -88,7 +88,7 @@ describe('unit/RewardMath', () => {
       2000,
     )
     // 1000 - 750
-    expect(ownerEarning).to.eq(BigNumber.from(0))
+    expect(ownerEarning).to.eq(BigNumber.from(250))
     expect(liquidatorEarning).to.eq(BigNumber.from(150))
     expect(refunded).to.eq(BigNumber.from(600))
   })
