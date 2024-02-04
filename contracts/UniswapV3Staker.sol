@@ -228,6 +228,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         Deposit memory deposit = deposits[tokenId];
         bytes32 incentiveId = IncentiveId.compute(key);
 
+        if (stakes[tokenId][incentiveId].shares <= 0) revert StakeNotExist();
+
         bool isLiquidation = false;
         if (block.timestamp < key.endTime) {
             (, int24 tick, , , , , ) = key.pool.slot0();
