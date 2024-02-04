@@ -81,20 +81,20 @@ describe('unit/Deposits', () => {
     /**
      * We're ultimately checking these variables, so subject calls with calldata (from actor)
      * and returns those three objects. */
-    let subject: (calldata: string, actor?: Wallet) => Promise<void>
+    let _subject: (calldata: string, actor?: Wallet) => Promise<void>
 
     let createIncentiveResult: HelperTypes.CreateIncentive.Result
 
     async function getTokenInfo(
-      tokenId: string,
+      _tokenId: string,
       _createIncentiveResult: HelperTypes.CreateIncentive.Result = createIncentiveResult,
     ) {
       const incentiveId = await helpers.getIncentiveId(_createIncentiveResult)
 
       return {
-        deposit: await context.staker.deposits(tokenId),
+        deposit: await context.staker.deposits(_tokenId),
         incentive: await context.staker.incentives(incentiveId),
-        stake: await context.staker.stakes(tokenId, incentiveId),
+        stake: await context.staker.stakes(_tokenId, incentiveId),
       }
     }
 
@@ -116,7 +116,7 @@ describe('unit/Deposits', () => {
       expect(depositBefore.owner).to.eq(constants.AddressZero)
       expect(depositBefore.numberOfStakes).to.eq(0)
 
-      subject = async (data: string, actor: Wallet = lpUser0) => {
+      _subject = async (data: string, actor: Wallet = lpUser0) => {
         await context.nft
           .connect(actor)
           [SAFE_TRANSFER_FROM_SIGNATURE](actor.address, context.staker.address, tokenId, data, {
@@ -128,13 +128,14 @@ describe('unit/Deposits', () => {
 
     it('allows depositing without staking', async () => {
       // Pass empty data
-      await subject(ethers.utils.defaultAbiCoder.encode([], []))
+      await _subject(ethers.utils.defaultAbiCoder.encode([], []))
       const { deposit, incentive, stake } = await getTokenInfo(tokenId)
 
       expect(deposit.owner).to.eq(lpUser0.address)
       expect(deposit.numberOfStakes).to.eq(BN('0'))
-      expect(incentive.numberOfStakes).to.eq(BN('0'))
-      expect(stake.secondsPerLiquidityInsideInitialX128).to.eq(BN('0'))
+      expect(incentive.totalShares).to.eq(BN('0'))
+      expect(stake.stakedSince).to.eq(BN('0'))
+      expect(stake.shares).to.eq(BN('0'))
     })
 
     it('allows depositing and staking for a single incentive', async () => {
@@ -142,21 +143,25 @@ describe('unit/Deposits', () => {
         [INCENTIVE_KEY_ABI],
         [incentiveResultToStakeAdapter(createIncentiveResult)],
       )
-      await subject(data, lpUser0)
+      const { liquidity: positionLiquidity } = await context.nft.positions(tokenId)
+
+      await _subject(data, lpUser0)
       const { deposit, incentive, stake } = await getTokenInfo(tokenId)
       expect(deposit.owner).to.eq(lpUser0.address)
       expect(deposit.numberOfStakes).to.eq(BN('1'))
-      expect(incentive.numberOfStakes).to.eq(BN('1'))
-      expect(stake.secondsPerLiquidityInsideInitialX128).not.to.eq(BN('0'))
+      expect(incentive.totalShares).to.eq(positionLiquidity)
+      expect(incentive.rewardPerShare).to.eq(BN('0'))
+      expect(stake.stakedSince).not.to.eq(BN('0'))
+      expect(stake.shares).to.eq(positionLiquidity)
     })
 
     it('allows depositing and staking for two incentives', async () => {
       const createIncentiveResult2 = await helpers.createIncentiveFlow({
         rewardToken: context.rewardToken,
-        poolAddress: context.poolObj.address,
+        pool: context.poolObj.address,
         startTime: createIncentiveResult.startTime + 100,
         totalReward,
-        ...defaultIncentiveCfg(),
+        config: defaultIncentiveCfg(),
       })
 
       await Time.setAndMine(createIncentiveResult2.startTime)
@@ -166,17 +171,21 @@ describe('unit/Deposits', () => {
         [[createIncentiveResult, createIncentiveResult2].map(incentiveResultToStakeAdapter)],
       )
 
-      await subject(data)
+      const { liquidity: positionLiquidity } = await context.nft.positions(tokenId)
+
+      await _subject(data)
       const { deposit, incentive, stake } = await getTokenInfo(tokenId)
       expect(deposit.owner).to.eq(lpUser0.address)
       expect(deposit.numberOfStakes).to.eq(BN('2'))
-      expect(incentive.numberOfStakes).to.eq(BN('1'))
-      expect(stake.secondsPerLiquidityInsideInitialX128).not.to.eq(BN('0'))
+      expect(incentive.totalShares).to.eq(positionLiquidity)
+      expect(stake.stakedSince).not.to.eq(BN('0'))
+      expect(stake.shares).to.eq(positionLiquidity)
 
       const { incentive: incentive2, stake: stake2 } = await getTokenInfo(tokenId, createIncentiveResult2)
 
-      expect(incentive2.numberOfStakes).to.eq(BN('1'))
-      expect(stake2.secondsPerLiquidityInsideInitialX128).not.to.eq(BN('0'))
+      expect(incentive2.totalShares).to.eq(positionLiquidity)
+      expect(stake2.stakedSince).not.to.eq(BN('0'))
+      expect(stake2.shares).to.eq(positionLiquidity)
     })
 
     describe('reverts when', () => {
@@ -186,7 +195,7 @@ describe('unit/Deposits', () => {
           [incentiveResultToStakeAdapter(createIncentiveResult)],
         )
         const malformedData = data.slice(0, data.length - 2)
-        await expect(subject(malformedData)).to.be.reverted
+        await expect(_subject(malformedData)).to.be.reverted
       })
 
       it('it has an invalid pool address', async () => {
@@ -196,12 +205,12 @@ describe('unit/Deposits', () => {
             // Make the data invalid
             incentiveResultToStakeAdapter({
               ...createIncentiveResult,
-              poolAddress: constants.AddressZero,
+              pool: constants.AddressZero,
             }),
           ],
         )
 
-        await expect(subject(data)).to.be.reverted
+        await expect(_subject(data)).to.be.reverted
       })
 
       it('staking information is invalid and greater than 160 bytes', async () => {
@@ -211,7 +220,7 @@ describe('unit/Deposits', () => {
             [incentiveResultToStakeAdapter(createIncentiveResult)],
           ) + 'aaaa'
 
-        await expect(subject(malformedData)).to.be.reverted
+        await expect(_subject(malformedData)).to.be.reverted
       })
     })
   })
@@ -219,7 +228,7 @@ describe('unit/Deposits', () => {
   describe('#onERC721Received', () => {
     const incentiveKeyAbi =
       'tuple(address rewardToken, address pool, uint256 startTime, uint256 endTime, address refundee)'
-    let tokenId: BigNumberish
+    let _tokenId: BigNumberish
     let data: string
     let timestamps: ContractParams.Timestamps
 
@@ -234,7 +243,7 @@ describe('unit/Deposits', () => {
         context.nft.address,
       )
 
-      tokenId = await mintPosition(context.nft.connect(lpUser0), {
+      _tokenId = await mintPosition(context.nft.connect(lpUser0), {
         token0: context.token0.address,
         token1: context.token1.address,
         fee: FeeAmount.MEDIUM,
@@ -267,15 +276,15 @@ describe('unit/Deposits', () => {
       })
 
       it('deposits the token', async () => {
-        expect((await context.staker.deposits(tokenId)).owner).to.equal(constants.AddressZero)
+        expect((await context.staker.deposits(_tokenId)).owner).to.equal(constants.AddressZero)
         await context.nft
           .connect(lpUser0)
-          ['safeTransferFrom(address,address,uint256)'](lpUser0.address, context.staker.address, tokenId, {
+          ['safeTransferFrom(address,address,uint256)'](lpUser0.address, context.staker.address, _tokenId, {
             ...maxGas,
             from: lpUser0.address,
           })
 
-        expect((await context.staker.deposits(tokenId)).owner).to.equal(lpUser0.address)
+        expect((await context.staker.deposits(_tokenId)).owner).to.equal(lpUser0.address)
       })
 
       it('properly stakes the deposit in the select incentive', async () => {
@@ -288,20 +297,20 @@ describe('unit/Deposits', () => {
           ...defaultIncentiveCfg(),
         })
         await Time.set(timestamps.startTime + 10)
-        const stakeBefore = await context.staker.stakes(tokenId, incentiveId)
-        const depositBefore = await context.staker.deposits(tokenId)
+        const stakeBefore = await context.staker.stakes(_tokenId, incentiveId)
+        const depositBefore = await context.staker.deposits(_tokenId)
         await context.nft
           .connect(lpUser0)
-          ['safeTransferFrom(address,address,uint256,bytes)'](lpUser0.address, context.staker.address, tokenId, data, {
+          ['safeTransferFrom(address,address,uint256,bytes)'](lpUser0.address, context.staker.address, _tokenId, data, {
             ...maxGas,
             from: lpUser0.address,
           })
-        const stakeAfter = await context.staker.stakes(tokenId, incentiveId)
+        const stakeAfter = await context.staker.stakes(_tokenId, incentiveId)
 
         expect(depositBefore.numberOfStakes).to.equal(0)
-        expect((await context.staker.deposits(tokenId)).numberOfStakes).to.equal(1)
-        expect(stakeBefore.secondsPerLiquidityInsideInitialX128).to.equal(0)
-        expect(stakeAfter.secondsPerLiquidityInsideInitialX128).to.be.gt(0)
+        expect((await context.staker.deposits(_tokenId)).numberOfStakes).to.equal(1)
+        expect(stakeBefore.stakedSince).to.equal(0)
+        expect(stakeAfter.stakedSince).to.be.gt(0)
       })
 
       it('has gas cost', async () => {
@@ -311,7 +320,7 @@ describe('unit/Deposits', () => {
             ['safeTransferFrom(address,address,uint256,bytes)'](
               lpUser0.address,
               context.staker.address,
-              tokenId,
+              _tokenId,
               data,
               {
                 ...maxGas,
@@ -326,7 +335,7 @@ describe('unit/Deposits', () => {
       it('reverts when called by contract other than uniswap v3 nonfungiblePositionManager', async () => {
         await expect(
           context.staker.connect(lpUser0).onERC721Received(incentiveCreator.address, lpUser0.address, 1, data),
-        ).to.be.revertedWith('UniswapV3Staker::onERC721Received: not a univ3 nft')
+        ).to.be.revertedWith('NotUniV3NFT')
       })
 
       it('reverts when staking on invalid incentive', async () => {
@@ -346,10 +355,10 @@ describe('unit/Deposits', () => {
             ['safeTransferFrom(address,address,uint256,bytes)'](
               lpUser0.address,
               context.staker.address,
-              tokenId,
+              _tokenId,
               invalidData,
             ),
-        ).to.be.revertedWith('UniswapV3Staker::stakeToken: non-existent incentive')
+        ).to.be.revertedWith('IncentiveNotExist')
       })
     })
   })
@@ -393,7 +402,7 @@ describe('unit/Deposits', () => {
       it('you are withdrawing a token that is not yours', async () => {
         const notOwner = actors.traderUser1()
         await expect(context.staker.connect(notOwner).withdrawToken(tokenId, notOwner.address, '0x')).to.revertedWith(
-          'UniswapV3Staker::withdrawToken: only owner can withdraw token',
+          'NotDepositOwner',
         )
       })
 
@@ -417,9 +426,7 @@ describe('unit/Deposits', () => {
           tokenId,
         )
 
-        await expect(subject(tokenId, lpUser0.address)).to.revertedWith(
-          'UniswapV3Staker::withdrawToken: cannot withdraw token while staked',
-        )
+        await expect(subject(tokenId, lpUser0.address)).to.revertedWith('CannotWithdrawWhileStaked')
       })
     })
   })
@@ -447,13 +454,13 @@ describe('unit/Deposits', () => {
 
     it('can only be called by the owner', async () => {
       await expect(context.staker.connect(lpUser1).transferDeposit(tokenId, lpUser1.address)).to.be.revertedWith(
-        'UniswapV3Staker::transferDeposit: can only be called by deposit owner',
+        'NotDepositOwner',
       )
     })
 
     it('cannot be transferred to address 0', async () => {
       await expect(context.staker.connect(lpUser0).transferDeposit(tokenId, constants.AddressZero)).to.be.revertedWith(
-        'UniswapV3Staker::transferDeposit: invalid transfer recipient',
+        'InvalidTransferRecipient',
       )
     })
 
