@@ -13,9 +13,12 @@ import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
 
 import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
 
+import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+
+import "hardhat/console.sol";
 
 /// @title Uniswap V3 canonical staking interface
 contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradeable, AccessControlUpgradeable {
@@ -65,7 +68,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     mapping(uint256 tokenId => mapping(bytes32 incentiveId => Stake stake)) public override stakes;
 
     /// @inheritdoc IUniswapV3Staker
-    mapping(IERC20Minimal rewardToken => mapping(address owner => uint256)) public override rewards;
+    mapping(IERC20Minimal rewardToken => mapping(address owner => uint256)) public override rewards; 
 
     /// @param _factory the Uniswap V3 factory
     /// @param _nonfungiblePositionManager the NFT position manager contract address
@@ -110,7 +113,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         bytes32 incentiveId = IncentiveId.compute(key);
 
         incentives[incentiveId].remainingReward += reward;
-        incentives[incentiveId].lastAccrueTime = uint32(block.timestamp);
+        incentives[incentiveId].lastAccrueTime = uint32(key.startTime);
 
         TransferHelperExtended.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward);
 
@@ -254,6 +257,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) = _computeAndDistributeReward(
             incentiveId,
             tokenId,
+            incentives[incentiveId].rewardPerShare,
             isLiquidation
         );
 
@@ -378,12 +382,13 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             block.timestamp
         );
         // update the last accural time
-        incentive.lastAccrueTime = uint32(block.timestamp);
+        incentive.lastAccrueTime = uint32(Math.min(block.timestamp, key.endTime));
     }
 
     function _computeAndDistributeReward(
         bytes32 incentiveId,
         uint256 tokenId,
+        uint256 currentRewardPerShare,
         bool isLiquidation
     ) private view returns (uint256, uint256, uint256) {
         Stake memory stake = stakes[tokenId][incentiveId];
@@ -391,7 +396,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         uint256 reward = RewardMath.computeRewardAmount(
             stake.shares,
             stake.lastRewardPerShare,
-            incentives[incentiveId].rewardPerShare
+            currentRewardPerShare
         );
 
         IncentiveConfig memory incentiveConfig = incentiveConfigs[incentiveId];

@@ -79,7 +79,7 @@ describe('integration', async () => {
         rewardToken,
         pool: context.pool01,
         totalReward,
-        ...defaultIncentiveCfg(),
+        config: defaultIncentiveCfg(),
       })
 
       const params = {
@@ -398,7 +398,17 @@ describe('integration', async () => {
           deadline: (await blockTimestamp()) + 1000,
         })
 
-        await Time.set(createIncentiveResult.endTime + 1)
+        await Time.setAndMine(createIncentiveResult.endTime + 1)
+
+        await Promise.all(
+          stakes.map(async ({ tokenId, stakedAt }) => {
+            console.log(
+              stakedAt,
+              tokenId,
+              await context.staker.getRewardInfo(incentiveResultToStakeAdapter(createIncentiveResult), tokenId),
+            )
+          }),
+        )
 
         const unstakes = await Promise.all(
           stakes.map(({ lp, tokenId }) =>
@@ -471,7 +481,7 @@ describe('integration', async () => {
         rewardToken: context.rewardToken,
         pool: context.pool01,
         totalReward,
-        ...midIncentiveCfg(midpoint, 20, FeeAmount.MEDIUM),
+        config: midIncentiveCfg(midpoint, 20, FeeAmount.MEDIUM),
       })
 
       return {

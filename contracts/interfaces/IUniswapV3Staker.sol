@@ -53,14 +53,14 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param incentiveId The ID of the incentive computed from its parameters
     /// @return remainingReward The amount of reward token not yet claimed by users
     /// @return totalShares Total liquidity shares staked
-    /// @return rewardPerShare Reward Per share accumulated at the time of the last update
+    /// @return rewardPerShare Accumulated reward Per share 
     /// @return lastAccrueTime Last time rewardPerShare was updated
     function incentives(
         bytes32 incentiveId
     )
         external
         view
-        returns (uint256 remainingReward, uint256 totalShares, uint256 rewardPerShare, uint32 lastAccrueTime);
+        returns (uint256 remainingReward,  uint256 totalShares, uint256 rewardPerShare, uint32 lastAccrueTime);
 
     /// @notice Represents a staking incentive config
     /// @param incentiveId The ID of the incentive computed from its parameters

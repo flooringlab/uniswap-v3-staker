@@ -3,16 +3,20 @@ pragma solidity ^0.8.23;
 
 import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import "hardhat/console.sol";
 
 /// @title Math for computing rewards
 /// @notice Allows computing rewards given some parameters of stakes and incentives
 library RewardMath {
+    // multiplier for reward calc
+    uint256 private constant REWARD_PER_SHARE_PRECISION = 1e18;
+
     function computeRewardAmount(
         uint256 shares,
         uint256 lastRewardPerShare,
         uint256 currentRewardPerShare
     ) internal pure returns (uint256 reward) {
-        reward = shares * (currentRewardPerShare - lastRewardPerShare);
+        reward = FullMath.mulDiv(shares, (currentRewardPerShare - lastRewardPerShare), REWARD_PER_SHARE_PRECISION);
     }
 
     function computeRewardPerShareDiff(
@@ -24,11 +28,16 @@ library RewardMath {
     ) internal pure returns (uint256 rewardPerShareDiff) {
         if (totalShares == 0) return 0;
 
-        uint256 accruedReward = endTime <= lastAccrueTime
-            ? 0
-            : FullMath.mulDiv(remainingReward, (currentTime - lastAccrueTime), (endTime - lastAccrueTime));
+        if (currentTime > endTime) currentTime = endTime;
+        if (currentTime <= lastAccrueTime) return 0;
 
-        return accruedReward / totalShares;
+        uint256 accruedReward = FullMath.mulDiv(
+            remainingReward,
+            (currentTime - lastAccrueTime),
+            (endTime - lastAccrueTime)
+        );
+
+        return FullMath.mulDiv(accruedReward, REWARD_PER_SHARE_PRECISION, totalShares); 
     }
 
     function computeRewardDistribution(
