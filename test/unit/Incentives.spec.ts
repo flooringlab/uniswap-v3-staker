@@ -108,7 +108,7 @@ describe('unit/Incentives', async () => {
 
         const incentive = await context.staker.incentives(incentiveId)
         expect(incentive.remainingReward).to.equal(totalReward)
-        expect(incentive.rewardPerShare).to.equal(BN(0))
+        expect(incentive.rewardPerLiquidity).to.equal(BN(0))
       })
 
       it('adds to existing incentives', async () => {
@@ -122,10 +122,11 @@ describe('unit/Incentives', async () => {
           endTime: timestamps.endTime,
           refundee: incentiveCreator.address,
         })
-        const { remainingReward, rewardPerShare, totalShares } = await context.staker.incentives(incentiveId)
+        const { remainingReward, rewardPerLiquidity, totalLiquidityStaked } =
+          await context.staker.incentives(incentiveId)
         expect(remainingReward).to.equal(totalReward.mul(2))
-        expect(rewardPerShare).to.equal(0)
-        expect(totalShares).to.equal(0)
+        expect(rewardPerLiquidity).to.equal(0)
+        expect(totalLiquidityStaked).to.equal(0)
       })
 
       it('does not override the existing numberOfStakes', async () => {
@@ -140,10 +141,10 @@ describe('unit/Incentives', async () => {
         await erc20Helper.ensureBalancesAndApprovals(actors.lpUser0(), rewardToken, BN(100), context.staker.address)
         await context.staker.connect(actors.lpUser0()).createIncentive(incentiveKey, defaultIncentiveCfg(), 100)
         const incentiveId = await context.testIncentiveId.compute(incentiveKey)
-        let { remainingReward, rewardPerShare, totalShares } = await context.staker.incentives(incentiveId)
+        let { remainingReward, rewardPerLiquidity, totalLiquidityStaked } = await context.staker.incentives(incentiveId)
         expect(remainingReward).to.equal(100)
-        expect(rewardPerShare).to.equal(0)
-        expect(totalShares).to.equal(0)
+        expect(rewardPerLiquidity).to.equal(0)
+        expect(totalLiquidityStaked).to.equal(0)
         expect(await rewardToken.balanceOf(context.staker.address)).to.eq(100)
         const { tokenId } = await helpers.mintFlow({
           lp: actors.lpUser0(),
@@ -164,12 +165,12 @@ describe('unit/Incentives', async () => {
             context.staker.interface.encodeFunctionData('createIncentive', [incentiveKey, defaultIncentiveCfg(), 50]),
             context.staker.interface.encodeFunctionData('stakeToken', [incentiveKey, tokenId]),
           ])
-        ;({ remainingReward, rewardPerShare, totalShares } = await context.staker
+        ;({ remainingReward, rewardPerLiquidity, totalLiquidityStaked } = await context.staker
           .connect(actors.lpUser0())
           .incentives(incentiveId))
         expect(remainingReward).to.equal(150)
-        expect(rewardPerShare).to.equal(0)
-        expect(totalShares).to.equal(positionLiquidity)
+        expect(rewardPerLiquidity).to.equal(0)
+        expect(totalLiquidityStaked).to.equal(positionLiquidity)
       })
 
       it('has gas cost', async () => {
@@ -292,9 +293,9 @@ describe('unit/Incentives', async () => {
 
         await Time.set(timestamps.endTime + 1)
         await subject({})
-        const { remainingReward, totalShares } = await context.staker.incentives(incentiveId)
+        const { remainingReward, totalLiquidityStaked } = await context.staker.incentives(incentiveId)
         expect(remainingReward).to.eq(0)
-        expect(totalShares).to.eq(0)
+        expect(totalLiquidityStaked).to.eq(0)
       })
 
       it('has gas cost', async () => {

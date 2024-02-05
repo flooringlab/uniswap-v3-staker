@@ -12,41 +12,41 @@ describe('unit/RewardMath', () => {
   })
 
   it('distribute over 20% of the total duration', async () => {
-    const { rewardPerShareDiff } = await rewardMath.computeRewardPerShareDiff(1000, 100, 200, 100, 120)
+    const { rewardPerLiquidityDiff } = await rewardMath.computeRewardPerLiquidityDiff(1000, 100, 200, 100, 120)
     // 1000 * 0.2 / 100
-    expect(rewardPerShareDiff).to.eq(BNe(2, 12))
+    expect(rewardPerLiquidityDiff).to.eq(BNe(2, 12))
   })
 
   it('all the liquidity for the duration and none of the liquidity after the end time for a whole duration', async () => {
-    const { rewardPerShareDiff } = await rewardMath.computeRewardPerShareDiff(1000, 100, 200, 100, 200)
+    const { rewardPerLiquidityDiff } = await rewardMath.computeRewardPerLiquidityDiff(1000, 100, 200, 100, 200)
     // 1000 / 100
-    expect(rewardPerShareDiff).to.eq(BNe(10, 12))
+    expect(rewardPerLiquidityDiff).to.eq(BNe(10, 12))
   })
 
   it('all the liquidity for the duration and none of the liquidity after the end time for one second', async () => {
-    const { rewardPerShareDiff } = await rewardMath.computeRewardPerShareDiff(1000, 100, 200, 100, 201)
+    const { rewardPerLiquidityDiff } = await rewardMath.computeRewardPerLiquidityDiff(1000, 100, 200, 100, 201)
     // 1000 / 100
-    expect(rewardPerShareDiff).to.eq(BNe(10, 12))
+    expect(rewardPerLiquidityDiff).to.eq(BNe(10, 12))
   })
 
   it('0 rewards left gets 0 reward', async () => {
-    const { rewardPerShareDiff } = await rewardMath.computeRewardPerShareDiff(0, 100, 200, 100, 201)
-    expect(rewardPerShareDiff).to.eq(BigNumber.from(0))
+    const { rewardPerLiquidityDiff } = await rewardMath.computeRewardPerLiquidityDiff(0, 100, 200, 100, 201)
+    expect(rewardPerLiquidityDiff).to.eq(BigNumber.from(0))
   })
 
   it('0 difference in seconds gets 0 reward', async () => {
-    const { rewardPerShareDiff } = await rewardMath.computeRewardPerShareDiff(1000, 100, 200, 100, 100)
-    expect(rewardPerShareDiff).to.eq(BigNumber.from(0))
+    const { rewardPerLiquidityDiff } = await rewardMath.computeRewardPerLiquidityDiff(1000, 100, 200, 100, 100)
+    expect(rewardPerLiquidityDiff).to.eq(BigNumber.from(0))
   })
 
   it('0 liquidity share gets 0 reward', async () => {
-    const { rewardPerShareDiff } = await rewardMath.computeRewardPerShareDiff(1000, 0, 200, 100, 200)
-    expect(rewardPerShareDiff).to.eq(BigNumber.from(0))
+    const { rewardPerLiquidityDiff } = await rewardMath.computeRewardPerLiquidityDiff(1000, 0, 200, 100, 200)
+    expect(rewardPerLiquidityDiff).to.eq(BigNumber.from(0))
   })
 
   it('0 reward after expired', async () => {
-    const { rewardPerShareDiff } = await rewardMath.computeRewardPerShareDiff(1000, 100, 200, 200, 300)
-    expect(rewardPerShareDiff).to.eq(BigNumber.from(0))
+    const { rewardPerLiquidityDiff } = await rewardMath.computeRewardPerLiquidityDiff(1000, 100, 200, 200, 300)
+    expect(rewardPerLiquidityDiff).to.eq(BigNumber.from(0))
   })
 
   it('reward with shares diff', async () => {

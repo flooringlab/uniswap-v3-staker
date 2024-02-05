@@ -12,28 +12,28 @@ library RewardMath {
     uint256 private constant REWARD_PER_SHARE_PRECISION = 1e12;
 
     function computeRewardAmount(
-        uint256 shares,
-        uint256 lastRewardPerShare,
-        uint256 currentRewardPerShare
+        uint256 liquidity,
+        uint256 lastRewardPerLiquidity,
+        uint256 currentRewardPerLiquidity
     ) internal pure returns (uint256 reward) {
-        reward = FullMath.mulDiv(shares, (currentRewardPerShare - lastRewardPerShare), REWARD_PER_SHARE_PRECISION);
+        reward = FullMath.mulDiv(liquidity, (currentRewardPerLiquidity - lastRewardPerLiquidity), REWARD_PER_SHARE_PRECISION);
     }
 
-    function computeRewardPerShareDiff(
+    function computeRewardPerLiquidityDiff(
         uint256 remainingReward,
-        uint256 totalShares,
+        uint256 totalLiquidity,
         uint256 endTime,
         uint256 lastAccrueTime,
         uint256 currentTime
-    ) internal pure returns (uint256 rewardPerShareDiff, uint256 accruedReward) {
-        if (totalShares == 0) return (0, 0);
+    ) internal pure returns (uint256 rewardPerLiquidityDiff, uint256 accruedReward) {
+        if (totalLiquidity == 0) return (0, 0);
 
         if (currentTime > endTime) currentTime = endTime;
         if (currentTime <= lastAccrueTime) return (0, 0);
 
         accruedReward = FullMath.mulDiv(remainingReward, (currentTime - lastAccrueTime), (endTime - lastAccrueTime));
 
-        rewardPerShareDiff = FullMath.mulDiv(accruedReward, REWARD_PER_SHARE_PRECISION, totalShares);
+        rewardPerLiquidityDiff = FullMath.mulDiv(accruedReward, REWARD_PER_SHARE_PRECISION, totalLiquidity);
     }
 
     function computeRewardDistribution(

@@ -54,7 +54,7 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @return remainingReward The amount of reward token not yet claimed by users
     /// @return accountedReward The amount of reward token not yet claimed by users
     /// @return rewardPerShare Accumulated reward Per share
-    /// @return totalShares Total liquidity shares staked
+    /// @return totalLiquidityStaked Total liquidity staked
     /// @return lastAccrueTime Last time rewardPerShare was updated
     function incentives(
         bytes32 incentiveId
@@ -62,10 +62,10 @@ interface IUniswapV3Staker is IERC721Receiver {
         external
         view
         returns (
-            uint256 remainingReward,
-            uint256 accountedReward,
+            uint128 remainingReward,
+            uint128 accountedReward,
             uint256 rewardPerShare,
-            uint224 totalShares,
+            uint224 totalLiquidityStaked,
             uint32 lastAccrueTime
         );
 
@@ -97,12 +97,12 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param tokenId The ID of the staked token
     /// @param incentiveId The ID of the incentive for which the token is staked
     /// @return lastRewardPerShare The last `rewardPerShare` used to calculate the reward of the `tokenId`
-    /// @return shares The amount of liquidity in the NFT
+    /// @return liquidity The amount of liquidity in the NFT
     /// @return stakedSince The timestamp indicating when the token was staked
     function stakes(
         uint256 tokenId,
         bytes32 incentiveId
-    ) external view returns (uint256 lastRewardPerShare, uint128 shares, uint32 stakedSince);
+    ) external view returns (uint256 lastRewardPerShare, uint128 liquidity, uint32 stakedSince);
 
     /// @notice Returns amounts of reward tokens owed to a given address according to the last time all stakes were updated
     /// @param rewardToken The token for which to check rewards
@@ -114,7 +114,7 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param key Details of the incentive to create
     /// @param config Config of the incentive to create
     /// @param reward The amount of reward tokens to be distributed
-    function createIncentive(IncentiveKey memory key, IncentiveConfig memory config, uint256 reward) external;
+    function createIncentive(IncentiveKey memory key, IncentiveConfig memory config, uint128 reward) external;
 
     /// @notice Ends an incentive after the incentive end time has passed and all stakes have been withdrawn
     /// @param key Details of the incentive to end
@@ -162,11 +162,11 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param key The key of the incentive
     /// @param tokenId The ID of the token
     /// @return reward The reward accrued to the NFT for the given incentive thus far
-    /// @return currentRewardPerShare current reward per share to compute the reward
+    /// @return currentRewardPerLiquidity current reward per share to compute the reward
     function getRewardInfo(
         IncentiveKey memory key,
         uint256 tokenId
-    ) external returns (uint256 reward, uint256 currentRewardPerShare);
+    ) external returns (uint256 reward, uint256 currentRewardPerLiquidity);
 
     /// @notice Event emitted when a liquidity mining incentive has been created
     /// @param rewardToken The token being distributed as a reward

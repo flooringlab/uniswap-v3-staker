@@ -24,10 +24,10 @@ import 'hardhat/console.sol';
 contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradeable, AccessControlUpgradeable {
     /// @notice Represents a staking incentive
     struct Incentive {
-        uint256 accountedReward;
-        uint256 remainingReward;
-        uint256 rewardPerShare;
-        uint224 totalShares;
+        uint128 accountedReward;
+        uint128 remainingReward;
+        uint256 rewardPerLiquidity;
+        uint224 totalLiquidityStaked;
         uint32 lastAccrueTime;
     }
 
@@ -41,8 +41,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
     /// @notice Represents a staked liquidity NFT
     struct Stake {
-        uint256 lastRewardPerShare;
-        uint128 shares;
+        uint256 lastRewardPerLiquidity;
+        uint128 liquidity;
         uint32 stakedSince;
     }
 
@@ -102,7 +102,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function createIncentive(IncentiveKey memory key, IncentiveConfig memory config, uint256 reward) external override {
+    function createIncentive(IncentiveKey memory key, IncentiveConfig memory config, uint128 reward) external override {
         if (reward <= 0) revert RewardMustBePositive();
         if (block.timestamp > key.startTime) revert StartTimeMustBeNowOrFuture();
         if (key.startTime - block.timestamp > maxIncentiveStartLeadTime) revert StartTimeTooFarInFuture();
@@ -133,7 +133,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         refund = incentive.remainingReward + incentive.accountedReward;
 
         if (refund <= 0) revert NoRefundAvailable();
-        if (incentive.totalShares > 0) revert CannotEndIncentiveWhileStaked();
+        if (incentive.totalLiquidityStaked > 0) revert CannotEndIncentiveWhileStaked();
 
         // issue the refund
         incentive.remainingReward = 0;
@@ -241,17 +241,17 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) = _computeAndDistributeReward(
             incentiveId,
             tokenId,
-            incentives[incentiveId].rewardPerShare,
+            incentives[incentiveId].rewardPerLiquidity,
             isLiquidation
         );
 
         {
             Incentive storage incentive = incentives[incentiveId];
-            // remove unstaked shares
-            incentive.totalShares -= stakes[tokenId][incentiveId].shares;
+            // remove unstaked liquidity
+            incentive.totalLiquidityStaked -= stakes[tokenId][incentiveId].liquidity;
             // reward is never greater than total reward unclaimed
-            incentive.accountedReward -= (ownerEarning + liquidatorEarning);
-            incentive.remainingReward += refunded;
+            incentive.accountedReward -= uint128(ownerEarning + liquidatorEarning);
+            incentive.remainingReward += uint128(refunded);
         }
         // this only overflows if a token has a total supply greater than type(uint256).max
         if (isLiquidation) {
@@ -290,24 +290,24 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     function getRewardInfo(
         IncentiveKey memory key,
         uint256 tokenId
-    ) external view override returns (uint256 reward, uint256 currentRewardPerShare) {
+    ) external view override returns (uint256 reward, uint256 currentRewardPerLiquidity) {
         bytes32 incentiveId = IncentiveId.compute(key);
 
         Stake memory stake = stakes[tokenId][incentiveId];
-        if (stake.shares <= 0) revert StakeNotExist();
+        if (stake.liquidity <= 0) revert StakeNotExist();
 
         Incentive memory incentive = incentives[incentiveId];
 
-        (currentRewardPerShare, ) = RewardMath.computeRewardPerShareDiff(
+        (currentRewardPerLiquidity, ) = RewardMath.computeRewardPerLiquidityDiff( 
             incentive.remainingReward,
-            incentive.totalShares,
+            incentive.totalLiquidityStaked,
             key.endTime,
             incentive.lastAccrueTime,
             block.timestamp
         );
-        currentRewardPerShare += incentive.rewardPerShare;
+        currentRewardPerLiquidity += incentive.rewardPerLiquidity;
 
-        reward = RewardMath.computeRewardAmount(stake.shares, stake.lastRewardPerShare, currentRewardPerShare);
+        reward = RewardMath.computeRewardAmount(stake.liquidity, stake.lastRewardPerLiquidity, currentRewardPerLiquidity);
     }
 
     /// @dev Stakes a deposited token without doing an ownership check
@@ -322,7 +322,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         bytes32 incentiveId = IncentiveId.compute(key);
 
         if (incentives[incentiveId].remainingReward <= 0) revert IncentiveNotExist();
-        if (stakes[tokenId][incentiveId].shares != 0) revert TokenAlreadyStaked();
+        if (stakes[tokenId][incentiveId].liquidity != 0) revert TokenAlreadyStaked();
 
         (IUniswapV3Pool pool, int24 tickLower, int24 tickUpper, uint128 liquidity) = (
             positionInfo.pool,
@@ -346,11 +346,11 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
         stakes[tokenId][incentiveId] = Stake({
             stakedSince: uint32(block.timestamp),
-            shares: liquidity,
-            lastRewardPerShare: incentive.rewardPerShare
+            liquidity: liquidity,
+            lastRewardPerLiquidity: incentive.rewardPerLiquidity
         });
 
-        incentive.totalShares += liquidity;
+        incentive.totalLiquidityStaked += liquidity;
         ++deposits[tokenId].numberOfStakes;
 
         emit TokenStaked(tokenId, incentiveId, liquidity);
@@ -358,19 +358,19 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
     function _accrueReward(IncentiveKey memory key, Incentive storage incentive) private {
         /// accrue previous rewards
-        (uint256 rewardPerShareDiff, uint256 accruedReward) = RewardMath.computeRewardPerShareDiff(
+        (uint256 rewardPerLiquidityDiff, uint256 accruedReward) = RewardMath.computeRewardPerLiquidityDiff(
             incentive.remainingReward,
-            incentive.totalShares,
+            incentive.totalLiquidityStaked,
             key.endTime,
             incentive.lastAccrueTime,
             block.timestamp
         );
 
         if (accruedReward > 0) {
-            incentive.accountedReward += accruedReward;
-            incentive.remainingReward -= accruedReward;
+            incentive.accountedReward += uint128(accruedReward);
+            incentive.remainingReward -= uint128(accruedReward);
             // accumulate reward for per share
-            incentive.rewardPerShare += rewardPerShareDiff;
+            incentive.rewardPerLiquidity += rewardPerLiquidityDiff;
         }
 
         // update the last accural time
@@ -380,12 +380,12 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     function _computeAndDistributeReward(
         bytes32 incentiveId,
         uint256 tokenId,
-        uint256 currentRewardPerShare,
+        uint256 currentRewardPerLiquidity,
         bool isLiquidation
     ) private view returns (uint256, uint256, uint256) {
         Stake memory stake = stakes[tokenId][incentiveId];
 
-        uint256 reward = RewardMath.computeRewardAmount(stake.shares, stake.lastRewardPerShare, currentRewardPerShare);
+        uint256 reward = RewardMath.computeRewardAmount(stake.liquidity, stake.lastRewardPerLiquidity, currentRewardPerLiquidity);
 
         IncentiveConfig memory incentiveConfig = incentiveConfigs[incentiveId];
 
@@ -409,7 +409,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         uint256 tokenId
     ) private view returns (bool) {
         Stake storage stake = stakes[tokenId][incentiveId];
-        if (stake.shares <= 0) revert StakeNotExist();
+        if (stake.liquidity <= 0) revert StakeNotExist();
 
         bool isLiquidation = false;
         if (block.timestamp < key.endTime) {

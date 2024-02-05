@@ -133,9 +133,9 @@ describe('unit/Deposits', () => {
 
       expect(deposit.owner).to.eq(lpUser0.address)
       expect(deposit.numberOfStakes).to.eq(BN('0'))
-      expect(incentive.totalShares).to.eq(BN('0'))
+      expect(incentive.totalLiquidityStaked).to.eq(BN('0'))
       expect(stake.stakedSince).to.eq(BN('0'))
-      expect(stake.shares).to.eq(BN('0'))
+      expect(stake.liquidity).to.eq(BN('0'))
     })
 
     it('allows depositing and staking for a single incentive', async () => {
@@ -149,10 +149,10 @@ describe('unit/Deposits', () => {
       const { deposit, incentive, stake } = await getTokenInfo(tokenId)
       expect(deposit.owner).to.eq(lpUser0.address)
       expect(deposit.numberOfStakes).to.eq(BN('1'))
-      expect(incentive.totalShares).to.eq(positionLiquidity)
-      expect(incentive.rewardPerShare).to.eq(BN('0'))
+      expect(incentive.totalLiquidityStaked).to.eq(positionLiquidity)
+      expect(incentive.rewardPerLiquidity).to.eq(BN('0'))
       expect(stake.stakedSince).not.to.eq(BN('0'))
-      expect(stake.shares).to.eq(positionLiquidity)
+      expect(stake.liquidity).to.eq(positionLiquidity)
     })
 
     it('allows depositing and staking for two incentives', async () => {
@@ -177,15 +177,15 @@ describe('unit/Deposits', () => {
       const { deposit, incentive, stake } = await getTokenInfo(tokenId)
       expect(deposit.owner).to.eq(lpUser0.address)
       expect(deposit.numberOfStakes).to.eq(BN('2'))
-      expect(incentive.totalShares).to.eq(positionLiquidity)
+      expect(incentive.totalLiquidityStaked).to.eq(positionLiquidity)
       expect(stake.stakedSince).not.to.eq(BN('0'))
-      expect(stake.shares).to.eq(positionLiquidity)
+      expect(stake.liquidity).to.eq(positionLiquidity)
 
       const { incentive: incentive2, stake: stake2 } = await getTokenInfo(tokenId, createIncentiveResult2)
 
-      expect(incentive2.totalShares).to.eq(positionLiquidity)
+      expect(incentive2.totalLiquidityStaked).to.eq(positionLiquidity)
       expect(stake2.stakedSince).not.to.eq(BN('0'))
-      expect(stake2.shares).to.eq(positionLiquidity)
+      expect(stake2.liquidity).to.eq(positionLiquidity)
     })
 
     describe('reverts when', () => {

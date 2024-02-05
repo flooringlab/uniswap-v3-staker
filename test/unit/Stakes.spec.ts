@@ -131,10 +131,10 @@ describe('unit/Stakes', () => {
         const depositStakesAfter = (await context.staker.deposits(tokenId)).numberOfStakes
 
         expect(stakeBefore.stakedSince).to.eq(0)
-        expect(stakeBefore.shares).to.eq(0)
+        expect(stakeBefore.liquidity).to.eq(0)
         expect(depositStakesBefore).to.eq(0)
         expect(stakeAfter.stakedSince).to.be.gt(0)
-        expect(stakeAfter.shares).to.eq(liquidity)
+        expect(stakeAfter.liquidity).to.eq(liquidity)
         expect(depositStakesAfter).to.eq(1)
       })
 
@@ -147,11 +147,11 @@ describe('unit/Stakes', () => {
 
       it('increments the number of stakes on the incentive', async () => {
         const liquidity = (await context.nft.positions(tokenId)).liquidity
-        const { totalShares: stakesBefore } = await context.staker.incentives(incentiveId)
+        const { totalLiquidityStaked: stakesBefore } = await context.staker.incentives(incentiveId)
 
         await subject(tokenId, lpUser0)
 
-        const { totalShares: stakesAfter } = await context.staker.incentives(incentiveId)
+        const { totalLiquidityStaked: stakesAfter } = await context.staker.incentives(incentiveId)
         expect(stakesAfter.sub(stakesBefore)).to.eq(liquidity)
       })
 
@@ -323,7 +323,7 @@ describe('unit/Stakes', () => {
 
       // @ts-ignore
       expect(rewardInfo.reward).to.be.closeTo(BNe(1, 19), BN(1))
-      expect(rewardInfo.currentRewardPerShare).to.gt(stake.lastRewardPerShare)
+      expect(rewardInfo.currentRewardPerLiquidity).to.gt(stake.lastRewardPerLiquidity)
     })
 
     it('returns nonzero for incentive after end time', async () => {
@@ -332,7 +332,7 @@ describe('unit/Stakes', () => {
       const rewardInfo = await context.staker.connect(lpUser0).getRewardInfo(stakeIncentiveKey, tokenId)
 
       expect(rewardInfo.reward, 'reward is nonzero').to.not.equal(0)
-      expect(rewardInfo.currentRewardPerShare, 'reward is nonzero').to.not.equal(0)
+      expect(rewardInfo.currentRewardPerLiquidity, 'reward is nonzero').to.not.equal(0)
     })
 
     it('reverts if stake does not exist', async () => {
@@ -546,9 +546,9 @@ describe('unit/Stakes', () => {
 
       it('decrements incentive numberOfStakes by 1', async () => {
         const liquidity = (await context.nft.positions(tokenId)).liquidity
-        const { totalShares: stakesPre } = await context.staker.incentives(incentiveId)
+        const { totalLiquidityStaked: stakesPre } = await context.staker.incentives(incentiveId)
         await subject(lpUser0)
-        const { totalShares: stakesPost } = await context.staker.incentives(incentiveId)
+        const { totalLiquidityStaked: stakesPost } = await context.staker.incentives(incentiveId)
         expect(stakesPre).to.equal(stakesPost.add(liquidity))
       })
 
@@ -573,9 +573,9 @@ describe('unit/Stakes', () => {
         await subject(lpUser0)
         const stakeAfter = await context.staker.stakes(tokenId, incentiveId)
 
-        expect(stakeBefore.shares).to.gt(0)
+        expect(stakeBefore.liquidity).to.gt(0)
         expect(stakeBefore.stakedSince).to.gt(0)
-        expect(stakeAfter.shares).to.eq(0)
+        expect(stakeAfter.liquidity).to.eq(0)
         expect(stakeAfter.stakedSince).to.eq(0)
       })
 
