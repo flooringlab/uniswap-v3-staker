@@ -22,7 +22,14 @@ contract TestRewardMath {
         uint256 lastAccrueTime,
         uint256 currentTime
     ) public pure returns (uint256 rewardPerLiquidityDiff, uint256 accruedReward) {
-        return RewardMath.computeRewardPerLiquidityDiff(remainingReward, totalLiquidity, endTime, lastAccrueTime, currentTime);
+        return
+            RewardMath.computeRewardPerLiquidityDiff(
+                remainingReward,
+                totalLiquidity,
+                endTime,
+                lastAccrueTime,
+                currentTime
+            );
     }
 
     function computeRewardDistribution(

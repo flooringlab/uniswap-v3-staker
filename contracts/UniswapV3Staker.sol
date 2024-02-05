@@ -225,7 +225,6 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         _stakeToken(key, tokenId, positionInfo);
     }
 
-
     /// @inheritdoc IUniswapV3Staker
     function unstakeToken(
         IncentiveKey memory key,
@@ -298,7 +297,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
         Incentive memory incentive = incentives[incentiveId];
 
-        (currentRewardPerLiquidity, ) = RewardMath.computeRewardPerLiquidityDiff( 
+        (currentRewardPerLiquidity, ) = RewardMath.computeRewardPerLiquidityDiff(
             incentive.remainingReward,
             incentive.totalLiquidityStaked,
             key.endTime,
@@ -307,7 +306,11 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         );
         currentRewardPerLiquidity += incentive.rewardPerLiquidity;
 
-        reward = RewardMath.computeRewardAmount(stake.liquidity, stake.lastRewardPerLiquidity, currentRewardPerLiquidity);
+        reward = RewardMath.computeRewardAmount(
+            stake.liquidity,
+            stake.lastRewardPerLiquidity,
+            currentRewardPerLiquidity
+        );
     }
 
     /// @dev Stakes a deposited token without doing an ownership check
@@ -385,7 +388,11 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     ) private view returns (uint256, uint256, uint256) {
         Stake memory stake = stakes[tokenId][incentiveId];
 
-        uint256 reward = RewardMath.computeRewardAmount(stake.liquidity, stake.lastRewardPerLiquidity, currentRewardPerLiquidity);
+        uint256 reward = RewardMath.computeRewardAmount(
+            stake.liquidity,
+            stake.lastRewardPerLiquidity,
+            currentRewardPerLiquidity
+        );
 
         IncentiveConfig memory incentiveConfig = incentiveConfigs[incentiveId];
 
@@ -402,7 +409,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
                 : (reward, 0, 0);
     }
 
-        function _checkUnstakeParam(
+    function _checkUnstakeParam(
         IncentiveKey memory key,
         Deposit memory deposit,
         bytes32 incentiveId,

@@ -16,7 +16,11 @@ library RewardMath {
         uint256 lastRewardPerLiquidity,
         uint256 currentRewardPerLiquidity
     ) internal pure returns (uint256 reward) {
-        reward = FullMath.mulDiv(liquidity, (currentRewardPerLiquidity - lastRewardPerLiquidity), REWARD_PER_SHARE_PRECISION);
+        reward = FullMath.mulDiv(
+            liquidity,
+            (currentRewardPerLiquidity - lastRewardPerLiquidity),
+            REWARD_PER_SHARE_PRECISION
+        );
     }
 
     function computeRewardPerLiquidityDiff(
