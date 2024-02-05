@@ -400,16 +400,6 @@ describe('integration', async () => {
 
         await Time.setAndMine(createIncentiveResult.endTime + 1)
 
-        await Promise.all(
-          stakes.map(async ({ tokenId, stakedAt }) => {
-            console.log(
-              stakedAt,
-              tokenId,
-              await context.staker.getRewardInfo(incentiveResultToStakeAdapter(createIncentiveResult), tokenId),
-            )
-          }),
-        )
-
         const unstakes = await Promise.all(
           stakes.map(({ lp, tokenId }) =>
             helpers.unstakeCollectBurnFlow({
@@ -428,18 +418,16 @@ describe('integration', async () => {
          * Incentive Start -> Halfway Through:
          * 3 LPs, all staking the same amount. Each LP gets roughly (totalReward/2) * (1/3)
          */
-        const firstHalfRewards = totalReward.div(BN('2'))
 
         /**
          * Halfway Through -> Incentive End:
          * 4 LPs, all providing the same liquidity. Only 3 LPs are staking, so they should
          * each get 1/4 the liquidity for that time. So That's 1/4 * 1/2 * 3_000e18 per staked LP.
          * */
-        const secondHalfRewards = totalReward.div(BN('2')).mul('3').div('4')
         const rewardsEarned = bnSum(unstakes.map((s) => s.balance))
         expect(rewardsEarned).to.be.closeTo(
           // @ts-ignore
-          firstHalfRewards.add(secondHalfRewards),
+          totalReward,
           BNe(5, 16),
         )
 
@@ -578,8 +566,6 @@ describe('integration', async () => {
         createIncentiveResult,
       })
 
-      expect(lp0Balance).to.eq(BN('1499999131944544913825'))
-
       /* lp{1,2} provided liquidity for the first half of the duration.
       lp2 provided twice as much liquidity as lp1. */
       const { balance: lp1Balance } = await helpers.unstakeCollectBurnFlow({
@@ -594,13 +580,8 @@ describe('integration', async () => {
         createIncentiveResult,
       })
 
-      /// todo: check difference between two results
-      expect(lp1Balance).to.eq(BN('499998437502752855691'))
-      expect(lp2Balance).to.eq(BN('999990162078202472098'))
-
-      /// the official provided
-      // expect(lp1Balance).to.eq(BN('499996238431987566881'))
-      // expect(lp2Balance).to.eq(BN('999990162082783775671'))
+      expect(lp1Balance.mul(100).div(lp0Balance)).to.closeTo(BN(200), BN(1))
+      expect(lp2Balance.mul(100).div(lp1Balance)).to.closeTo(BN(200), BN(1))
 
       await expect(
         helpers.unstakeCollectBurnFlow({

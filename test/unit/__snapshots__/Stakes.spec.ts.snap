@@ -2,6 +2,6 @@
 
 exports[`unit/Stakes #claimReward when requesting the full amount has gas cost 1`] = `53441`;
 
-exports[`unit/Stakes #stakeToken works and has gas cost 1`] = `119563`;
+exports[`unit/Stakes #stakeToken works and has gas cost 1`] = `97739`;
 
-exports[`unit/Stakes #unstakeToken works and has gas cost 1`] = `58282`;
+exports[`unit/Stakes #unstakeToken works and has gas cost 1`] = `124259`;

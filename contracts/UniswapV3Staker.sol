@@ -18,15 +18,16 @@ import '@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
-import "hardhat/console.sol";
+import 'hardhat/console.sol';
 
 /// @title Uniswap V3 canonical staking interface
 contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradeable, AccessControlUpgradeable {
     /// @notice Represents a staking incentive
     struct Incentive {
+        uint256 accountedReward;
         uint256 remainingReward;
-        uint256 totalShares;
         uint256 rewardPerShare;
+        uint224 totalShares;
         uint32 lastAccrueTime;
     }
 
@@ -68,7 +69,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     mapping(uint256 tokenId => mapping(bytes32 incentiveId => Stake stake)) public override stakes;
 
     /// @inheritdoc IUniswapV3Staker
-    mapping(IERC20Minimal rewardToken => mapping(address owner => uint256)) public override rewards; 
+    mapping(IERC20Minimal rewardToken => mapping(address owner => uint256)) public override rewards;
 
     /// @param _factory the Uniswap V3 factory
     /// @param _nonfungiblePositionManager the NFT position manager contract address
@@ -115,7 +116,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         incentives[incentiveId].remainingReward += reward;
         incentives[incentiveId].lastAccrueTime = uint32(key.startTime);
 
-        TransferHelperExtended.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward);
+        TransferHelperExtended.safeTransferFrom(address(key.rewardToken), _msgSender(), address(this), reward);
 
         _grantRole(incentiveId, _msgSender());
 
@@ -129,13 +130,14 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         bytes32 incentiveId = IncentiveId.compute(key);
         Incentive storage incentive = incentives[incentiveId];
 
-        refund = incentive.remainingReward;
+        refund = incentive.remainingReward + incentive.accountedReward;
 
         if (refund <= 0) revert NoRefundAvailable();
         if (incentive.totalShares > 0) revert CannotEndIncentiveWhileStaked();
 
         // issue the refund
         incentive.remainingReward = 0;
+        incentive.accountedReward = 0;
         TransferHelperExtended.safeTransfer(address(key.rewardToken), key.refundee, refund);
 
         // note we never clear totalSecondsClaimedX128
@@ -223,6 +225,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         _stakeToken(key, tokenId, positionInfo);
     }
 
+
     /// @inheritdoc IUniswapV3Staker
     function unstakeToken(
         IncentiveKey memory key,
@@ -231,26 +234,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         Deposit memory deposit = deposits[tokenId];
         bytes32 incentiveId = IncentiveId.compute(key);
 
-        if (stakes[tokenId][incentiveId].shares <= 0) revert StakeNotExist();
-
-        bool isLiquidation = false;
-        if (block.timestamp < key.endTime) {
-            (, int24 tick, , , , , ) = key.pool.slot0();
-            bool inRange = deposit.tickLower <= tick && tick <= deposit.tickUpper;
-            if (inRange && _msgSender() != deposit.owner) revert CannotLiquidateWhileActive();
-
-            if (
-                inRange &&
-                (block.timestamp - stakes[tokenId][incentiveId].stakedSince) <
-                incentiveConfigs[incentiveId].minExitDuration
-            ) revert UnstakeRequireMinDuration();
-
-            isLiquidation = !inRange;
-        }
-
-        // Anyone(except Contract Caller) can liquidate the stakes that are out of range
-        // prevent price manipulation using Flash Loan or something else
-        if (isLiquidation && _msgSender().code.length > 0) revert CannotLiquidateByContract();
+        bool isLiquidation = _checkUnstakeParam(key, deposit, incentiveId, tokenId);
 
         _accrueReward(key, incentives[incentiveId]);
 
@@ -266,7 +250,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             // remove unstaked shares
             incentive.totalShares -= stakes[tokenId][incentiveId].shares;
             // reward is never greater than total reward unclaimed
-            incentive.remainingReward -= (ownerEarning + liquidatorEarning);
+            incentive.accountedReward -= (ownerEarning + liquidatorEarning);
+            incentive.remainingReward += refunded;
         }
         // this only overflows if a token has a total supply greater than type(uint256).max
         if (isLiquidation) {
@@ -290,12 +275,12 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         address to,
         uint256 amountRequested
     ) external override returns (uint256 reward) {
-        reward = rewards[rewardToken][msg.sender];
+        reward = rewards[rewardToken][_msgSender()];
         if (amountRequested != 0 && amountRequested < reward) {
             reward = amountRequested;
         }
 
-        rewards[rewardToken][msg.sender] -= reward;
+        rewards[rewardToken][_msgSender()] -= reward;
         TransferHelperExtended.safeTransfer(address(rewardToken), to, reward);
 
         emit RewardClaimed(to, reward);
@@ -313,15 +298,14 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
         Incentive memory incentive = incentives[incentiveId];
 
-        currentRewardPerShare =
-            incentive.rewardPerShare +
-            RewardMath.computeRewardPerShareDiff(
-                incentive.remainingReward,
-                incentive.totalShares,
-                key.endTime,
-                incentive.lastAccrueTime,
-                block.timestamp
-            );
+        (currentRewardPerShare, ) = RewardMath.computeRewardPerShareDiff(
+            incentive.remainingReward,
+            incentive.totalShares,
+            key.endTime,
+            incentive.lastAccrueTime,
+            block.timestamp
+        );
+        currentRewardPerShare += incentive.rewardPerShare;
 
         reward = RewardMath.computeRewardAmount(stake.shares, stake.lastRewardPerShare, currentRewardPerShare);
     }
@@ -367,20 +351,28 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         });
 
         incentive.totalShares += liquidity;
-        deposits[tokenId].numberOfStakes++;
+        ++deposits[tokenId].numberOfStakes;
 
         emit TokenStaked(tokenId, incentiveId, liquidity);
     }
 
     function _accrueReward(IncentiveKey memory key, Incentive storage incentive) private {
         /// accrue previous rewards
-        incentive.rewardPerShare += RewardMath.computeRewardPerShareDiff(
+        (uint256 rewardPerShareDiff, uint256 accruedReward) = RewardMath.computeRewardPerShareDiff(
             incentive.remainingReward,
             incentive.totalShares,
             key.endTime,
             incentive.lastAccrueTime,
             block.timestamp
         );
+
+        if (accruedReward > 0) {
+            incentive.accountedReward += accruedReward;
+            incentive.remainingReward -= accruedReward;
+            // accumulate reward for per share
+            incentive.rewardPerShare += rewardPerShareDiff;
+        }
+
         // update the last accural time
         incentive.lastAccrueTime = uint32(Math.min(block.timestamp, key.endTime));
     }
@@ -393,11 +385,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     ) private view returns (uint256, uint256, uint256) {
         Stake memory stake = stakes[tokenId][incentiveId];
 
-        uint256 reward = RewardMath.computeRewardAmount(
-            stake.shares,
-            stake.lastRewardPerShare,
-            currentRewardPerShare
-        );
+        uint256 reward = RewardMath.computeRewardAmount(stake.shares, stake.lastRewardPerShare, currentRewardPerShare);
 
         IncentiveConfig memory incentiveConfig = incentiveConfigs[incentiveId];
 
@@ -412,5 +400,34 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
                     incentiveConfig.liquidationBonusBips
                 )
                 : (reward, 0, 0);
+    }
+
+        function _checkUnstakeParam(
+        IncentiveKey memory key,
+        Deposit memory deposit,
+        bytes32 incentiveId,
+        uint256 tokenId
+    ) private view returns (bool) {
+        Stake storage stake = stakes[tokenId][incentiveId];
+        if (stake.shares <= 0) revert StakeNotExist();
+
+        bool isLiquidation = false;
+        if (block.timestamp < key.endTime) {
+            (, int24 tick, , , , , ) = key.pool.slot0();
+            bool inRange = deposit.tickLower <= tick && tick <= deposit.tickUpper;
+            if (inRange && _msgSender() != deposit.owner) revert CannotLiquidateWhileActive();
+
+            // active liquidity requires a minimum staking duration for exiting
+            if (inRange && (block.timestamp - stake.stakedSince) < incentiveConfigs[incentiveId].minExitDuration)
+                revert UnstakeRequireMinDuration();
+
+            isLiquidation = !inRange;
+        }
+
+        // Anyone(except Contract Caller) can liquidate the stakes that are out of range
+        // prevent price manipulation using Flash Loan or something else
+        if (isLiquidation && _msgSender().code.length > 0) revert CannotLiquidateByContract();
+
+        return isLiquidation;
     }
 }

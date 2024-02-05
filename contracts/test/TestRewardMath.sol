@@ -21,14 +21,8 @@ contract TestRewardMath {
         uint256 endTime,
         uint256 lastAccrueTime,
         uint256 currentTime
-    ) public pure returns (uint256 rewardPerShareDiff) {
-        rewardPerShareDiff = RewardMath.computeRewardPerShareDiff(
-            remainingReward,
-            totalShares,
-            endTime,
-            lastAccrueTime,
-            currentTime
-        );
+    ) public pure returns (uint256 rewardPerShareDiff, uint256 accruedReward) {
+        return RewardMath.computeRewardPerShareDiff(remainingReward, totalShares, endTime, lastAccrueTime, currentTime);
     }
 
     function computeRewardDistribution(
