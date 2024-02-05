@@ -446,12 +446,20 @@ describe('integration', async () => {
       createIncentiveResult: HelperTypes.CreateIncentive.Result
       helpers: HelperCommands
       context: TestContext
+      midpoint: number
+      stakeScenario: () => Promise<HelperTypes.MintDepositStake.Result[]>
     }
     let subject: TestSubject
 
     const totalReward = BNe18(3_000)
     const duration = days(100)
     const baseAmount = BNe18(2)
+
+    type Position = {
+      lp: Wallet
+      amounts: [BigNumber, BigNumber]
+      ticks: [number, number]
+    }
 
     const scenario: Fixture<TestSubject> = async (_wallets, _provider) => {
       const context = await uniswapFixture(_wallets, _provider)
@@ -472,10 +480,61 @@ describe('integration', async () => {
         config: midIncentiveCfg(midpoint, 20, FeeAmount.MEDIUM),
       })
 
+      const stakeScenario = async () => {
+        const tokensToStake: [TestERC20, TestERC20] = [context.tokens[0], context.tokens[1]]
+        const positions: Array<Position> = [
+          // lpUser0 stakes 2e18 from min-0
+          {
+            lp: actors.lpUser0(),
+            amounts: [baseAmount, baseAmount],
+            ticks: [getMinTick(TICK_SPACINGS[FeeAmount.MEDIUM]), midpoint],
+          },
+          // lpUser1 stakes 4e18 from 0-max
+          {
+            lp: actors.lpUser1(),
+            amounts: [baseAmount.mul(2), baseAmount.mul(2)],
+            ticks: [midpoint, getMaxTick(TICK_SPACINGS[FeeAmount.MEDIUM])],
+          },
+          // lpUser2 stakes 8e18 from 0-max
+          {
+            lp: actors.lpUser2(),
+            amounts: [baseAmount.mul(4), baseAmount.mul(4)],
+            ticks: [midpoint, getMaxTick(TICK_SPACINGS[FeeAmount.MEDIUM])],
+          },
+        ]
+        Time.set(createIncentiveResult.startTime + 1)
+        const stakes = new Array(3)
+        stakes[0] = await helpers.mintDepositStakeFlow({
+          lp: positions[0].lp,
+          tokensToStake,
+          ticks: positions[0].ticks,
+          amountsToStake: positions[0].amounts,
+          createIncentiveResult,
+        })
+        stakes[1] = await helpers.mintDepositStakeFlow({
+          lp: positions[1].lp,
+          tokensToStake,
+          ticks: positions[1].ticks,
+          amountsToStake: positions[1].amounts,
+          createIncentiveResult,
+        })
+        stakes[2] = await helpers.mintDepositStakeFlow({
+          lp: positions[2].lp,
+          tokensToStake,
+          ticks: positions[2].ticks,
+          amountsToStake: positions[2].amounts,
+          createIncentiveResult,
+        })
+
+        return stakes
+      }
+
       return {
         context,
         helpers,
         createIncentiveResult,
+        midpoint,
+        stakeScenario,
       }
     }
 
@@ -483,63 +542,10 @@ describe('integration', async () => {
       subject = await loadFixture(scenario)
     })
 
-    it('rewards based on how long they are in range', async () => {
-      const { helpers, context, createIncentiveResult } = subject
-      type Position = {
-        lp: Wallet
-        amounts: [BigNumber, BigNumber]
-        ticks: [number, number]
-      }
+    it('rewards based on how long they are staked without liquidation', async () => {
+      const { helpers, createIncentiveResult, midpoint, stakeScenario } = subject
 
-      let midpoint = await getCurrentTick(context.poolObj.connect(actors.lpUser0()))
-
-      const positions: Array<Position> = [
-        // lpUser0 stakes 2e18 from min-0
-        {
-          lp: actors.lpUser0(),
-          amounts: [baseAmount, baseAmount],
-          ticks: [getMinTick(TICK_SPACINGS[FeeAmount.MEDIUM]), midpoint],
-        },
-        // lpUser1 stakes 4e18 from 0-max
-        {
-          lp: actors.lpUser1(),
-          amounts: [baseAmount.mul(2), baseAmount.mul(2)],
-          ticks: [midpoint, getMaxTick(TICK_SPACINGS[FeeAmount.MEDIUM])],
-        },
-        // lpUser2 stakes 8e18 from 0-max
-        {
-          lp: actors.lpUser2(),
-          amounts: [baseAmount.mul(4), baseAmount.mul(4)],
-          ticks: [midpoint, getMaxTick(TICK_SPACINGS[FeeAmount.MEDIUM])],
-        },
-      ]
-
-      const tokensToStake: [TestERC20, TestERC20] = [context.tokens[0], context.tokens[1]]
-
-      Time.set(createIncentiveResult.startTime + 1)
-      const stakes = new Array(3)
-      stakes[0] = await helpers.mintDepositStakeFlow({
-        lp: positions[0].lp,
-        tokensToStake,
-        ticks: positions[0].ticks,
-        amountsToStake: positions[0].amounts,
-        createIncentiveResult,
-      })
-      stakes[1] = await helpers.mintDepositStakeFlow({
-        lp: positions[1].lp,
-        tokensToStake,
-        ticks: positions[1].ticks,
-        amountsToStake: positions[1].amounts,
-        createIncentiveResult,
-      })
-      stakes[2] = await helpers.mintDepositStakeFlow({
-        lp: positions[2].lp,
-        tokensToStake,
-        ticks: positions[2].ticks,
-        amountsToStake: positions[2].amounts,
-        createIncentiveResult,
-      })
-
+      const stakes = await stakeScenario()
       const trader = actors.traderUser0()
 
       await helpers.makeTickGoFlow({
@@ -590,6 +596,12 @@ describe('integration', async () => {
           createIncentiveResult,
         }),
       ).to.be.reverted
+    })
+
+    it('liquidate by others when out of range', async () => {
+      const { helpers, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const stakes = await stakeScenario()
     })
   })
 })
