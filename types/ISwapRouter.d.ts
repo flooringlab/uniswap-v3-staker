@@ -26,8 +26,8 @@ interface ISwapRouterInterface extends ethers.utils.Interface {
         deadline: BigNumberish
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
-      }
-    ]
+      },
+    ],
   ): string
   encodeFunctionData(
     functionFragment: 'exactInputSingle',
@@ -41,8 +41,8 @@ interface ISwapRouterInterface extends ethers.utils.Interface {
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
-      }
-    ]
+      },
+    ],
   ): string
   encodeFunctionData(
     functionFragment: 'exactOutput',
@@ -53,8 +53,8 @@ interface ISwapRouterInterface extends ethers.utils.Interface {
         deadline: BigNumberish
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
-      }
-    ]
+      },
+    ],
   ): string
   encodeFunctionData(
     functionFragment: 'exactOutputSingle',
@@ -68,8 +68,8 @@ interface ISwapRouterInterface extends ethers.utils.Interface {
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
-      }
-    ]
+      },
+    ],
   ): string
   encodeFunctionData(functionFragment: 'uniswapV3SwapCallback', values: [BigNumberish, BigNumberish, BytesLike]): string
 
@@ -104,7 +104,7 @@ export class ISwapRouter extends Contract {
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<ContractTransaction>
 
     'exactInput(tuple)'(
@@ -115,7 +115,7 @@ export class ISwapRouter extends Contract {
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<ContractTransaction>
 
     exactInputSingle(
@@ -129,7 +129,7 @@ export class ISwapRouter extends Contract {
         amountOutMinimum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<ContractTransaction>
 
     'exactInputSingle(tuple)'(
@@ -143,7 +143,7 @@ export class ISwapRouter extends Contract {
         amountOutMinimum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<ContractTransaction>
 
     exactOutput(
@@ -154,7 +154,7 @@ export class ISwapRouter extends Contract {
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<ContractTransaction>
 
     'exactOutput(tuple)'(
@@ -165,7 +165,7 @@ export class ISwapRouter extends Contract {
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<ContractTransaction>
 
     exactOutputSingle(
@@ -179,7 +179,7 @@ export class ISwapRouter extends Contract {
         amountInMaximum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<ContractTransaction>
 
     'exactOutputSingle(tuple)'(
@@ -193,21 +193,21 @@ export class ISwapRouter extends Contract {
         amountInMaximum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<ContractTransaction>
 
     uniswapV3SwapCallback(
       amount0Delta: BigNumberish,
       amount1Delta: BigNumberish,
       data: BytesLike,
-      overrides?: Overrides
+      overrides?: Overrides,
     ): Promise<ContractTransaction>
 
     'uniswapV3SwapCallback(int256,int256,bytes)'(
       amount0Delta: BigNumberish,
       amount1Delta: BigNumberish,
       data: BytesLike,
-      overrides?: Overrides
+      overrides?: Overrides,
     ): Promise<ContractTransaction>
   }
 
@@ -219,7 +219,7 @@ export class ISwapRouter extends Contract {
       amountIn: BigNumberish
       amountOutMinimum: BigNumberish
     },
-    overrides?: PayableOverrides
+    overrides?: PayableOverrides,
   ): Promise<ContractTransaction>
 
   'exactInput(tuple)'(
@@ -230,7 +230,7 @@ export class ISwapRouter extends Contract {
       amountIn: BigNumberish
       amountOutMinimum: BigNumberish
     },
-    overrides?: PayableOverrides
+    overrides?: PayableOverrides,
   ): Promise<ContractTransaction>
 
   exactInputSingle(
@@ -244,7 +244,7 @@ export class ISwapRouter extends Contract {
       amountOutMinimum: BigNumberish
       sqrtPriceLimitX96: BigNumberish
     },
-    overrides?: PayableOverrides
+    overrides?: PayableOverrides,
   ): Promise<ContractTransaction>
 
   'exactInputSingle(tuple)'(
@@ -258,7 +258,7 @@ export class ISwapRouter extends Contract {
       amountOutMinimum: BigNumberish
       sqrtPriceLimitX96: BigNumberish
     },
-    overrides?: PayableOverrides
+    overrides?: PayableOverrides,
   ): Promise<ContractTransaction>
 
   exactOutput(
@@ -269,7 +269,7 @@ export class ISwapRouter extends Contract {
       amountOut: BigNumberish
       amountInMaximum: BigNumberish
     },
-    overrides?: PayableOverrides
+    overrides?: PayableOverrides,
   ): Promise<ContractTransaction>
 
   'exactOutput(tuple)'(
@@ -280,7 +280,7 @@ export class ISwapRouter extends Contract {
       amountOut: BigNumberish
       amountInMaximum: BigNumberish
     },
-    overrides?: PayableOverrides
+    overrides?: PayableOverrides,
   ): Promise<ContractTransaction>
 
   exactOutputSingle(
@@ -294,7 +294,7 @@ export class ISwapRouter extends Contract {
       amountInMaximum: BigNumberish
       sqrtPriceLimitX96: BigNumberish
     },
-    overrides?: PayableOverrides
+    overrides?: PayableOverrides,
   ): Promise<ContractTransaction>
 
   'exactOutputSingle(tuple)'(
@@ -308,21 +308,21 @@ export class ISwapRouter extends Contract {
       amountInMaximum: BigNumberish
       sqrtPriceLimitX96: BigNumberish
     },
-    overrides?: PayableOverrides
+    overrides?: PayableOverrides,
   ): Promise<ContractTransaction>
 
   uniswapV3SwapCallback(
     amount0Delta: BigNumberish,
     amount1Delta: BigNumberish,
     data: BytesLike,
-    overrides?: Overrides
+    overrides?: Overrides,
   ): Promise<ContractTransaction>
 
   'uniswapV3SwapCallback(int256,int256,bytes)'(
     amount0Delta: BigNumberish,
     amount1Delta: BigNumberish,
     data: BytesLike,
-    overrides?: Overrides
+    overrides?: Overrides,
   ): Promise<ContractTransaction>
 
   callStatic: {
@@ -334,7 +334,7 @@ export class ISwapRouter extends Contract {
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
 
     'exactInput(tuple)'(
@@ -345,7 +345,7 @@ export class ISwapRouter extends Contract {
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
 
     exactInputSingle(
@@ -359,7 +359,7 @@ export class ISwapRouter extends Contract {
         amountOutMinimum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
 
     'exactInputSingle(tuple)'(
@@ -373,7 +373,7 @@ export class ISwapRouter extends Contract {
         amountOutMinimum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
 
     exactOutput(
@@ -384,7 +384,7 @@ export class ISwapRouter extends Contract {
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
 
     'exactOutput(tuple)'(
@@ -395,7 +395,7 @@ export class ISwapRouter extends Contract {
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
 
     exactOutputSingle(
@@ -409,7 +409,7 @@ export class ISwapRouter extends Contract {
         amountInMaximum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
 
     'exactOutputSingle(tuple)'(
@@ -423,21 +423,21 @@ export class ISwapRouter extends Contract {
         amountInMaximum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
 
     uniswapV3SwapCallback(
       amount0Delta: BigNumberish,
       amount1Delta: BigNumberish,
       data: BytesLike,
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<void>
 
     'uniswapV3SwapCallback(int256,int256,bytes)'(
       amount0Delta: BigNumberish,
       amount1Delta: BigNumberish,
       data: BytesLike,
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<void>
   }
 
@@ -452,7 +452,7 @@ export class ISwapRouter extends Contract {
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<BigNumber>
 
     'exactInput(tuple)'(
@@ -463,7 +463,7 @@ export class ISwapRouter extends Contract {
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<BigNumber>
 
     exactInputSingle(
@@ -477,7 +477,7 @@ export class ISwapRouter extends Contract {
         amountOutMinimum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<BigNumber>
 
     'exactInputSingle(tuple)'(
@@ -491,7 +491,7 @@ export class ISwapRouter extends Contract {
         amountOutMinimum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<BigNumber>
 
     exactOutput(
@@ -502,7 +502,7 @@ export class ISwapRouter extends Contract {
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<BigNumber>
 
     'exactOutput(tuple)'(
@@ -513,7 +513,7 @@ export class ISwapRouter extends Contract {
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<BigNumber>
 
     exactOutputSingle(
@@ -527,7 +527,7 @@ export class ISwapRouter extends Contract {
         amountInMaximum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<BigNumber>
 
     'exactOutputSingle(tuple)'(
@@ -541,21 +541,21 @@ export class ISwapRouter extends Contract {
         amountInMaximum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<BigNumber>
 
     uniswapV3SwapCallback(
       amount0Delta: BigNumberish,
       amount1Delta: BigNumberish,
       data: BytesLike,
-      overrides?: Overrides
+      overrides?: Overrides,
     ): Promise<BigNumber>
 
     'uniswapV3SwapCallback(int256,int256,bytes)'(
       amount0Delta: BigNumberish,
       amount1Delta: BigNumberish,
       data: BytesLike,
-      overrides?: Overrides
+      overrides?: Overrides,
     ): Promise<BigNumber>
   }
 
@@ -568,7 +568,7 @@ export class ISwapRouter extends Contract {
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<PopulatedTransaction>
 
     'exactInput(tuple)'(
@@ -579,7 +579,7 @@ export class ISwapRouter extends Contract {
         amountIn: BigNumberish
         amountOutMinimum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<PopulatedTransaction>
 
     exactInputSingle(
@@ -593,7 +593,7 @@ export class ISwapRouter extends Contract {
         amountOutMinimum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<PopulatedTransaction>
 
     'exactInputSingle(tuple)'(
@@ -607,7 +607,7 @@ export class ISwapRouter extends Contract {
         amountOutMinimum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<PopulatedTransaction>
 
     exactOutput(
@@ -618,7 +618,7 @@ export class ISwapRouter extends Contract {
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<PopulatedTransaction>
 
     'exactOutput(tuple)'(
@@ -629,7 +629,7 @@ export class ISwapRouter extends Contract {
         amountOut: BigNumberish
         amountInMaximum: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<PopulatedTransaction>
 
     exactOutputSingle(
@@ -643,7 +643,7 @@ export class ISwapRouter extends Contract {
         amountInMaximum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<PopulatedTransaction>
 
     'exactOutputSingle(tuple)'(
@@ -657,21 +657,21 @@ export class ISwapRouter extends Contract {
         amountInMaximum: BigNumberish
         sqrtPriceLimitX96: BigNumberish
       },
-      overrides?: PayableOverrides
+      overrides?: PayableOverrides,
     ): Promise<PopulatedTransaction>
 
     uniswapV3SwapCallback(
       amount0Delta: BigNumberish,
       amount1Delta: BigNumberish,
       data: BytesLike,
-      overrides?: Overrides
+      overrides?: Overrides,
     ): Promise<PopulatedTransaction>
 
     'uniswapV3SwapCallback(int256,int256,bytes)'(
       amount0Delta: BigNumberish,
       amount1Delta: BigNumberish,
       data: BytesLike,
-      overrides?: Overrides
+      overrides?: Overrides,
     ): Promise<PopulatedTransaction>
   }
 }

@@ -19,7 +19,7 @@ export const linkLibraries = (
       }
     }
   },
-  libraries: { [libraryName: string]: string }
+  libraries: { [libraryName: string]: string },
 ): string => {
   Object.keys(linkReferences).forEach((fileName) => {
     Object.keys(linkReferences[fileName]).forEach((contractName) => {

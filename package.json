@@ -68,6 +68,7 @@
     "compile": "hardhat compile",
     "lint": "eslint . --ext .ts",
     "prettier:check": "prettier-check test/**/*.ts types/*.ts",
+    "lint:ts": "prettier --write test/**/*.ts types/*.ts",
     "lint:sol": "prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'",
     "size-contracts": "hardhat compile && hardhat size-contracts",
     "test": "hardhat test",
