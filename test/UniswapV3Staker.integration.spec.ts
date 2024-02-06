@@ -618,5 +618,33 @@ describe('integration', async () => {
       expect(ownerAccounted).to.closeTo(ownerReward, BNe(1, 15))
       expect(liquidatorAccounted).to.closeTo(liquidatorReward, BNe(1, 15))
     })
+
+    it('liquidate by self when out of range', async () => {
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
+      const stakes = await stakeScenario()
+      const trader = actors.traderUser0()
+
+      // Go halfway through
+      await Time.setAndMine(createIncentiveResult.startTime + duration / 2)
+
+      // stakes[0] goes out of range
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 10,
+      })
+
+      const { ownerReward, liquidatorReward } = await context.staker.getRewardInfo(incentiveKey, stakes[0].tokenId)
+
+      await context.staker.connect(stakes[0].lp).unstakeToken(incentiveKey, stakes[0].tokenId)
+
+      const [ownerAccounted] = await Promise.all([
+        context.staker.rewards(context.rewardToken.address, stakes[0].lp.address),
+      ])
+
+      expect(ownerAccounted).to.closeTo(ownerReward.add(liquidatorReward), BNe(1, 15))
+    })
   })
 })
