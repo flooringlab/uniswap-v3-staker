@@ -62,8 +62,8 @@ interface IUniswapV3Staker is IERC721Receiver {
         external
         view
         returns (
-            uint128 remainingReward,
-            uint128 accountedReward,
+            uint256 remainingReward,
+            uint256 accountedReward,
             uint256 rewardPerShare,
             uint224 totalLiquidityStaked,
             uint32 lastAccrueTime

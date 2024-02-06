@@ -24,8 +24,8 @@ import 'hardhat/console.sol';
 contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradeable, AccessControlUpgradeable {
     /// @notice Represents a staking incentive
     struct Incentive {
-        uint128 accountedReward;
-        uint128 remainingReward;
+        uint256 accountedReward;
+        uint256 remainingReward;
         uint256 rewardPerLiquidity;
         uint224 totalLiquidityStaked;
         uint32 lastAccrueTime;
@@ -246,8 +246,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             // remove unstaked liquidity
             incentive.totalLiquidityStaked -= stake.liquidity;
             // reward is never greater than total reward unclaimed
-            incentive.accountedReward -= uint128(ownerReward + liquidatorReward);
-            incentive.remainingReward += uint128(refunded);
+            incentive.accountedReward -= ownerReward + liquidatorReward;
+            incentive.remainingReward += refunded;
         }
         // this only overflows if a token has a total supply greater than type(uint256).max
         if (isLiquidation) {
@@ -371,8 +371,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         );
 
         if (accruedReward > 0) {
-            incentive.accountedReward += uint128(accruedReward);
-            incentive.remainingReward -= uint128(accruedReward);
+            incentive.accountedReward += accruedReward;
+            incentive.remainingReward -= accruedReward;
             // accumulate reward for per share
             incentive.rewardPerLiquidity += rewardPerLiquidityDiff;
         }
