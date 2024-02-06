@@ -322,7 +322,7 @@ describe('unit/Stakes', () => {
       const stake = await context.staker.stakes(tokenId, incentiveId)
 
       // @ts-ignore
-      expect(rewardInfo.reward).to.be.closeTo(BNe(1, 19), BN(1))
+      expect(rewardInfo.ownerReward).to.be.closeTo(BNe(1, 19), BN(1))
       expect(rewardInfo.currentRewardPerLiquidity).to.gt(stake.lastRewardPerLiquidity)
     })
 
@@ -331,7 +331,7 @@ describe('unit/Stakes', () => {
 
       const rewardInfo = await context.staker.connect(lpUser0).getRewardInfo(stakeIncentiveKey, tokenId)
 
-      expect(rewardInfo.reward, 'reward is nonzero').to.not.equal(0)
+      expect(rewardInfo.ownerReward, 'reward is nonzero').to.not.equal(0)
       expect(rewardInfo.currentRewardPerLiquidity, 'reward is nonzero').to.not.equal(0)
     })
 
@@ -482,7 +482,7 @@ describe('unit/Stakes', () => {
         totalReward,
         pool: context.poolObj.address,
         ...timestamps,
-        config: defaultIncentiveCfg(),
+        config: { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
       })
 
       await erc20Helper.ensureBalancesAndApprovals(

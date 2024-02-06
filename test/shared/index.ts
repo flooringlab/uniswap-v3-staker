@@ -150,11 +150,12 @@ export const defaultIncentiveCfg = (
   feeTier: FeeAmount = FeeAmount.MEDIUM,
   tickLower: number = getMinTick(TICK_SPACINGS[feeTier]),
   tickUpper: number = getMaxTick(TICK_SPACINGS[feeTier]),
+  minExitDuration: number = days(0.5),
 ) => ({
   minTickWidth: BigNumber.from(tickUpper - tickLower),
   penaltyDecayPeriod: BigNumber.from(days(1)),
   minPenaltyBips: BigNumber.from(200),
-  minExitDuration: BigNumber.from(days(0.5)),
+  minExitDuration: BigNumber.from(minExitDuration),
   liquidationBonusBips: BigNumber.from(3000),
 })
 

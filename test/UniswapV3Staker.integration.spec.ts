@@ -503,28 +503,18 @@ describe('integration', async () => {
           },
         ]
         Time.set(createIncentiveResult.startTime + 1)
-        const stakes = new Array(3)
-        stakes[0] = await helpers.mintDepositStakeFlow({
-          lp: positions[0].lp,
-          tokensToStake,
-          ticks: positions[0].ticks,
-          amountsToStake: positions[0].amounts,
-          createIncentiveResult,
-        })
-        stakes[1] = await helpers.mintDepositStakeFlow({
-          lp: positions[1].lp,
-          tokensToStake,
-          ticks: positions[1].ticks,
-          amountsToStake: positions[1].amounts,
-          createIncentiveResult,
-        })
-        stakes[2] = await helpers.mintDepositStakeFlow({
-          lp: positions[2].lp,
-          tokensToStake,
-          ticks: positions[2].ticks,
-          amountsToStake: positions[2].amounts,
-          createIncentiveResult,
-        })
+        const stakes: any[] = []
+        for (const position of positions) {
+          stakes.push(
+            await helpers.mintDepositStakeFlow({
+              lp: position.lp,
+              tokensToStake,
+              ticks: position.ticks,
+              amountsToStake: position.amounts,
+              createIncentiveResult,
+            }),
+          )
+        }
 
         return stakes
       }
@@ -586,6 +576,7 @@ describe('integration', async () => {
         createIncentiveResult,
       })
 
+      // The liquidity is half, and the rewards are also halved
       expect(lp1Balance.mul(100).div(lp0Balance)).to.closeTo(BN(200), BN(1))
       expect(lp2Balance.mul(100).div(lp1Balance)).to.closeTo(BN(200), BN(1))
 
@@ -599,9 +590,33 @@ describe('integration', async () => {
     })
 
     it('liquidate by others when out of range', async () => {
-      const { helpers, createIncentiveResult, midpoint, stakeScenario } = subject
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
 
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
       const stakes = await stakeScenario()
+      const trader = actors.traderUser0()
+
+      // Go halfway through
+      await Time.setAndMine(createIncentiveResult.startTime + duration / 2)
+
+      // stakes[0] goes out of range
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 10,
+      })
+
+      const { ownerReward, liquidatorReward } = await context.staker.getRewardInfo(incentiveKey, stakes[0].tokenId)
+
+      await context.staker.connect(trader).unstakeToken(incentiveKey, stakes[0].tokenId)
+
+      const [ownerAccounted, liquidatorAccounted] = await Promise.all([
+        context.staker.rewards(context.rewardToken.address, stakes[0].lp.address),
+        context.staker.rewards(context.rewardToken.address, trader.address),
+      ])
+
+      expect(ownerAccounted).to.closeTo(ownerReward, BNe(1, 15))
+      expect(liquidatorAccounted).to.closeTo(liquidatorReward, BNe(1, 15))
     })
   })
 })

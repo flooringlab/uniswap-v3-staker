@@ -121,6 +121,9 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @return refund The remaining reward tokens when the incentive is ended
     function endIncentive(IncentiveKey memory key) external returns (uint256 refund);
 
+    /// @notice Set the incentive configurations, only the one who created the incentive can set
+    /// @param incentiveId The ID of the incentive for which the token is staked
+    /// @param config The Configration of the incentive
     function setIncentiveConfig(bytes32 incentiveId, IncentiveConfig memory config) external;
 
     /// @notice Transfers ownership of a deposit from the sender to the given recipient
@@ -142,10 +145,7 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @notice Unstakes a Uniswap V3 LP token
     /// @param key The key of the incentive for which to unstake the NFT
     /// @param tokenId The ID of the token to unstake
-    function unstakeToken(
-        IncentiveKey memory key,
-        uint256 tokenId
-    ) external returns (uint256 liquidatorEarning, uint256 ownerEarning, uint256 refunded);
+    function unstakeToken(IncentiveKey memory key, uint256 tokenId) external;
 
     /// @notice Transfers `amountRequested` of accrued `rewardToken` rewards from the contract to the recipient `to`
     /// @param rewardToken The token being distributed as a reward
@@ -161,12 +161,17 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @notice Calculates the reward amount that will be received for the given stake
     /// @param key The key of the incentive
     /// @param tokenId The ID of the token
-    /// @return reward The reward accrued to the NFT for the given incentive thus far
+    /// @return ownerReward The reward accrued to the NFT for the given incentive thus far
+    /// @return liquidatorReward The reward accrued to the NFT for the given incentive thus far
+    /// @return refunded The reward accrued to the NFT for the given incentive thus far
     /// @return currentRewardPerLiquidity current reward per share to compute the reward
     function getRewardInfo(
         IncentiveKey memory key,
         uint256 tokenId
-    ) external returns (uint256 reward, uint256 currentRewardPerLiquidity);
+    )
+        external
+        view
+        returns (uint256 ownerReward, uint256 liquidatorReward, uint256 refunded, uint256 currentRewardPerLiquidity);
 
     /// @notice Event emitted when a liquidity mining incentive has been created
     /// @param rewardToken The token being distributed as a reward

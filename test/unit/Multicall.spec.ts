@@ -77,7 +77,7 @@ describe('unit/Multicall', () => {
         refundee: incentiveCreator.address,
         ...makeTimestamps(currentTime + 100),
       },
-      defaultIncentiveCfg(),
+      { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
       totalReward,
     ])
     await context.staker.connect(multicaller).multicall([createIncentiveTx], maxGas)
@@ -103,7 +103,7 @@ describe('unit/Multicall', () => {
       pool: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),
-      config: defaultIncentiveCfg(),
+      config: { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
     }
 
     const incentive0 = await helpers.createIncentiveFlow(incentiveParams)
@@ -139,7 +139,7 @@ describe('unit/Multicall', () => {
       refundee: actors.incentiveCreator().address,
       totalReward: BN(10000),
       pool: context.pool01,
-      config: defaultIncentiveCfg(),
+      config: { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
     })
     await helpers.getIncentiveId(incentive0)
     const incentive1 = await helpers.createIncentiveFlow({
@@ -149,7 +149,7 @@ describe('unit/Multicall', () => {
       refundee: actors.incentiveCreator().address,
       totalReward: BN(10000),
       pool: context.pool01,
-      config: defaultIncentiveCfg(),
+      config: { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
     })
     await helpers.getIncentiveId(incentive1)
 
@@ -192,7 +192,7 @@ describe('unit/Multicall', () => {
       pool: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),
-      config: defaultIncentiveCfg(),
+      config: { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
     })
 
     const params: HelperTypes.MintDepositStake.Args = {

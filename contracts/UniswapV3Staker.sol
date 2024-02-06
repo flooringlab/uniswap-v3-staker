@@ -115,6 +115,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
         incentives[incentiveId].remainingReward += reward;
         incentives[incentiveId].lastAccrueTime = uint32(key.startTime);
+        incentiveConfigs[incentiveId] = config;
 
         TransferHelperExtended.safeTransferFrom(address(key.rewardToken), _msgSender(), address(this), reward);
 
@@ -140,11 +141,10 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         incentive.accountedReward = 0;
         TransferHelperExtended.safeTransfer(address(key.rewardToken), key.refundee, refund);
 
-        // note we never clear totalSecondsClaimedX128
-
         emit IncentiveEnded(incentiveId, refund);
     }
 
+    /// @inheritdoc IUniswapV3Staker
     function setIncentiveConfig(
         bytes32 incentiveId,
         IncentiveConfig memory config
@@ -226,46 +226,41 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function unstakeToken(
-        IncentiveKey memory key,
-        uint256 tokenId
-    ) external override returns (uint256, uint256, uint256) {
+    function unstakeToken(IncentiveKey memory key, uint256 tokenId) external override {
         Deposit memory deposit = deposits[tokenId];
         bytes32 incentiveId = IncentiveId.compute(key);
+        Incentive storage incentive = incentives[incentiveId];
+        Stake memory stake = stakes[tokenId][incentiveId];
+        bool isLiquidation = _checkUnstakeParam(key, deposit, stake, incentiveConfigs[incentiveId]);
 
-        bool isLiquidation = _checkUnstakeParam(key, deposit, incentiveId, tokenId);
+        _accrueReward(key, incentive);
 
-        _accrueReward(key, incentives[incentiveId]);
-
-        (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) = _computeAndDistributeReward(
-            incentiveId,
-            tokenId,
-            incentives[incentiveId].rewardPerLiquidity,
+        (uint256 ownerReward, uint256 liquidatorReward, uint256 refunded) = _computeAndDistributeReward(
+            stake,
+            incentiveConfigs[incentiveId],
+            incentive.rewardPerLiquidity,
             isLiquidation
         );
 
         {
-            Incentive storage incentive = incentives[incentiveId];
             // remove unstaked liquidity
-            incentive.totalLiquidityStaked -= stakes[tokenId][incentiveId].liquidity;
+            incentive.totalLiquidityStaked -= stake.liquidity;
             // reward is never greater than total reward unclaimed
-            incentive.accountedReward -= uint128(ownerEarning + liquidatorEarning);
+            incentive.accountedReward -= uint128(ownerReward + liquidatorReward);
             incentive.remainingReward += uint128(refunded);
         }
         // this only overflows if a token has a total supply greater than type(uint256).max
         if (isLiquidation) {
-            rewards[key.rewardToken][deposit.owner] += ownerEarning;
-            rewards[key.rewardToken][_msgSender()] += liquidatorEarning;
+            rewards[key.rewardToken][deposit.owner] += ownerReward;
+            rewards[key.rewardToken][_msgSender()] += liquidatorReward;
         } else {
-            rewards[key.rewardToken][deposit.owner] += ownerEarning + liquidatorEarning;
+            rewards[key.rewardToken][deposit.owner] += ownerReward + liquidatorReward;
         }
 
         --deposits[tokenId].numberOfStakes;
         delete stakes[tokenId][incentiveId];
 
         emit TokenUnstaked(tokenId, incentiveId);
-
-        return (liquidatorEarning, ownerEarning, refunded);
     }
 
     /// @inheritdoc IUniswapV3Staker
@@ -289,7 +284,12 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     function getRewardInfo(
         IncentiveKey memory key,
         uint256 tokenId
-    ) external view override returns (uint256 reward, uint256 currentRewardPerLiquidity) {
+    )
+        external
+        view
+        override
+        returns (uint256 ownerReward, uint256 liquidatorReward, uint256 refunded, uint256 currentRewardPerLiquidity)
+    {
         bytes32 incentiveId = IncentiveId.compute(key);
 
         Stake memory stake = stakes[tokenId][incentiveId];
@@ -306,10 +306,12 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         );
         currentRewardPerLiquidity += incentive.rewardPerLiquidity;
 
-        reward = RewardMath.computeRewardAmount(
-            stake.liquidity,
-            stake.lastRewardPerLiquidity,
-            currentRewardPerLiquidity
+        Deposit memory deposit = deposits[tokenId];
+        (ownerReward, liquidatorReward, refunded) = _computeAndDistributeReward(
+            stake,
+            incentiveConfigs[incentiveId],
+            currentRewardPerLiquidity,
+            !_isPositionInRange(key.pool, deposit.tickLower, deposit.tickUpper)
         );
     }
 
@@ -340,8 +342,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             if (positionInfo.liquidity == 0) revert CannotStakeZeroLiquidity();
             if (incentiveConfig.minTickWidth > uint24(tickUpper - tickLower)) revert PositionRangeTooNarrow();
             /// Position should include current tick
-            (, int24 tick, , , , , ) = pool.slot0();
-            if (tick < tickLower || tick > tickUpper) revert CurrentTickMustWithinRange();
+            if (!_isPositionInRange(pool, tickLower, tickUpper)) revert CurrentTickMustWithinRange();
         }
 
         Incentive storage incentive = incentives[incentiveId];
@@ -381,20 +382,16 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     }
 
     function _computeAndDistributeReward(
-        bytes32 incentiveId,
-        uint256 tokenId,
+        Stake memory stake,
+        IncentiveConfig memory incentiveConfig,
         uint256 currentRewardPerLiquidity,
         bool isLiquidation
     ) private view returns (uint256, uint256, uint256) {
-        Stake memory stake = stakes[tokenId][incentiveId];
-
         uint256 reward = RewardMath.computeRewardAmount(
             stake.liquidity,
             stake.lastRewardPerLiquidity,
             currentRewardPerLiquidity
         );
-
-        IncentiveConfig memory incentiveConfig = incentiveConfigs[incentiveId];
 
         return
             isLiquidation
@@ -412,20 +409,18 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
     function _checkUnstakeParam(
         IncentiveKey memory key,
         Deposit memory deposit,
-        bytes32 incentiveId,
-        uint256 tokenId
+        Stake memory stake,
+        IncentiveConfig memory incentiveConfig
     ) private view returns (bool) {
-        Stake storage stake = stakes[tokenId][incentiveId];
         if (stake.liquidity <= 0) revert StakeNotExist();
 
         bool isLiquidation = false;
         if (block.timestamp < key.endTime) {
-            (, int24 tick, , , , , ) = key.pool.slot0();
-            bool inRange = deposit.tickLower <= tick && tick <= deposit.tickUpper;
+            bool inRange = _isPositionInRange(key.pool, deposit.tickLower, deposit.tickUpper);
             if (inRange && _msgSender() != deposit.owner) revert CannotLiquidateWhileActive();
 
             // active liquidity requires a minimum staking duration for exiting
-            if (inRange && (block.timestamp - stake.stakedSince) < incentiveConfigs[incentiveId].minExitDuration)
+            if (inRange && (block.timestamp - stake.stakedSince) < incentiveConfig.minExitDuration)
                 revert UnstakeRequireMinDuration();
 
             isLiquidation = !inRange;
@@ -436,5 +431,10 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         if (isLiquidation && _msgSender().code.length > 0) revert CannotLiquidateByContract();
 
         return isLiquidation;
+    }
+
+    function _isPositionInRange(IUniswapV3Pool pool, int24 tickLower, int24 tickUpper) private view returns (bool) {
+        (, int24 tick, , , , , ) = pool.slot0();
+        return tickLower <= tick && tick <= tickUpper;
     }
 }
