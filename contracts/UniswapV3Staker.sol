@@ -247,7 +247,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             incentive.totalLiquidityStaked -= stake.liquidity;
             // reward is never greater than total reward unclaimed
             incentive.accountedReward -= ownerReward + liquidatorReward;
-            incentive.remainingReward += refunded;
+            if (refunded > 0) incentive.remainingReward += refunded;
         }
         // this only overflows if a token has a total supply greater than type(uint256).max
         if (isLiquidation) {
