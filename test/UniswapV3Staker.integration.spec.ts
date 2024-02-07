@@ -646,5 +646,56 @@ describe('integration', async () => {
 
       expect(ownerAccounted).to.closeTo(ownerReward.add(liquidatorReward), BNe(1, 15))
     })
+
+    it('unstake by self when incentive is active and position is in range', async () => {
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
+      const stakes = await stakeScenario()
+      const trader = actors.traderUser0()
+
+      // Go halfway through
+      await Time.setAndMine(createIncentiveResult.startTime + duration / 2)
+
+      // stakes[0] goes out of range
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 10,
+      })
+
+      const { ownerReward, liquidatorReward } = await context.staker.getRewardInfo(incentiveKey, stakes[1].tokenId)
+
+      await context.staker.connect(stakes[1].lp).unstakeToken(incentiveKey, stakes[1].tokenId)
+
+      const [ownerAccounted] = await Promise.all([
+        context.staker.rewards(context.rewardToken.address, stakes[1].lp.address),
+      ])
+
+      expect(liquidatorReward).to.equal(BN(0))
+      expect(ownerAccounted).to.closeTo(ownerReward, BNe(1, 15))
+    })
+
+    it('cannot unstake by other when position is in range', async () => {
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
+      const stakes = await stakeScenario()
+      const trader = actors.traderUser0()
+
+      // Go halfway through
+      await Time.setAndMine(createIncentiveResult.startTime + duration / 2)
+
+      // stakes[0] goes out of range
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 10,
+      })
+
+      await expect(context.staker.connect(trader).unstakeToken(incentiveKey, stakes[1].tokenId)).to.be.revertedWith(
+        'CannotLiquidateWhileActive',
+      )
+    })
   })
 })
