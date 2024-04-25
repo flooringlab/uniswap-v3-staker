@@ -149,6 +149,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         bytes32 incentiveId,
         IncentiveConfig memory config
     ) external override onlyRole(incentiveId) {
+        if (config.minTickWidth == 0) revert MinTickWidthMustBePositive();
         incentiveConfigs[incentiveId] = config;
     }
 
@@ -246,7 +247,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             // remove unstaked liquidity
             incentive.totalLiquidityStaked -= stake.liquidity;
             // reward is never greater than total reward unclaimed
-            incentive.accountedReward -= ownerReward + liquidatorReward;
+            incentive.accountedReward -= ownerReward + liquidatorReward + refunded;
             if (refunded > 0) incentive.remainingReward += refunded;
         }
         // this only overflows if a token has a total supply greater than type(uint256).max
@@ -254,7 +255,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             rewards[key.rewardToken][deposit.owner] += ownerReward;
             rewards[key.rewardToken][_msgSender()] += liquidatorReward;
         } else {
-            rewards[key.rewardToken][deposit.owner] += ownerReward + liquidatorReward;
+            // liquidatorReward should be zero.
+            rewards[key.rewardToken][deposit.owner] += ownerReward;
         }
 
         --deposits[tokenId].numberOfStakes;
@@ -426,9 +428,9 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             isLiquidation = !inRange;
         }
 
-        // Anyone(except Contract Caller) can liquidate the stakes that are out of range
+        // Any EOA accounts can liquidate the stakes that are out of range
         // prevent price manipulation using Flash Loan or something else
-        if (isLiquidation && _msgSender().code.length > 0) revert CannotLiquidateByContract();
+        if (isLiquidation && _msgSender() != tx.origin) revert CannotLiquidateByContract();
 
         return isLiquidation;
     }
