@@ -247,6 +247,35 @@ describe('unit/Incentives', async () => {
           ).to.be.revertedWith('RewardMustBePositive')
         })
       })
+
+      describe('invalid operator to update incentive', () => {
+        it('invalid operator without role', async () => {
+          timestamps = makeTimestamps(await blockTimestamp())
+
+          const createIncentiveResult = await helpers.createIncentiveFlow({
+            ...timestamps,
+            rewardToken: context.rewardToken,
+            pool: context.poolObj.address,
+            refundee: incentiveCreator.address,
+            totalReward,
+            config: defaultIncentiveCfg(),
+          })
+
+          await expect(
+            context.staker.connect(actors.lpUser0()).createIncentive(
+              {
+                rewardToken: createIncentiveResult.rewardToken.address,
+                pool: createIncentiveResult.pool,
+                refundee: createIncentiveResult.refundee,
+                startTime: createIncentiveResult.startTime,
+                endTime: createIncentiveResult.endTime,
+              },
+              defaultIncentiveCfg(),
+              BNe18(0),
+            ),
+          ).to.be.revertedWith('AccessControlUnauthorizedAccount')
+        })
+      })
     })
   })
 
@@ -277,6 +306,36 @@ describe('unit/Incentives', async () => {
     })
 
     describe('works and', () => {
+      it('update incentive config', async () => {
+        timestamps = makeTimestamps(await blockTimestamp())
+
+        createIncentiveResult = await helpers.createIncentiveFlow({
+          ...timestamps,
+          rewardToken: context.rewardToken,
+          pool: context.poolObj.address,
+          refundee: incentiveCreator.address,
+          totalReward,
+          config: defaultIncentiveCfg(),
+        })
+
+        await context.staker.connect(incentiveCreator).createIncentive(
+          {
+            rewardToken: createIncentiveResult.rewardToken.address,
+            pool: createIncentiveResult.pool,
+            refundee: createIncentiveResult.refundee,
+            startTime: createIncentiveResult.startTime,
+            endTime: createIncentiveResult.endTime,
+          },
+          { ...defaultIncentiveCfg(), minExitDuration: BN(7 * 24 * 3600), minTickWidth: 128 },
+          BNe18(0),
+        )
+
+        const incentiveId = await helpers.getIncentiveId(createIncentiveResult)
+        const config = await context.staker.incentiveConfigs(incentiveId)
+        expect(config.minExitDuration).to.be.eq(7 * 24 * 3600)
+        expect(config.minTickWidth).to.be.eq(128)
+      })
+
       it('emits IncentiveEnded event', async () => {
         await Time.set(timestamps.endTime + 10)
 

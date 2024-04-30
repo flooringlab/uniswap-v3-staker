@@ -121,11 +121,6 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @return refund The remaining reward tokens when the incentive is ended
     function endIncentive(IncentiveKey memory key) external returns (uint256 refund);
 
-    /// @notice Set the incentive configurations, only the one who created the incentive can set
-    /// @param incentiveId The ID of the incentive for which the token is staked
-    /// @param config The Configration of the incentive
-    function setIncentiveConfig(bytes32 incentiveId, IncentiveConfig memory config) external;
-
     /// @notice Transfers ownership of a deposit from the sender to the given recipient
     /// @param tokenId The ID of the token (and the deposit) to transfer
     /// @param to The new owner of the deposit

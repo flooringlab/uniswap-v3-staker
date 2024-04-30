@@ -103,7 +103,6 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
     /// @inheritdoc IUniswapV3Staker
     function createIncentive(IncentiveKey memory key, IncentiveConfig memory config, uint128 reward) external override {
-        if (reward <= 0) revert RewardMustBePositive();
         if (block.timestamp > key.startTime) revert StartTimeMustBeNowOrFuture();
         if (key.startTime - block.timestamp > maxIncentiveStartLeadTime) revert StartTimeTooFarInFuture();
         if (key.startTime >= key.endTime) revert StartTimeMustBeforeEndTime();
@@ -112,16 +111,24 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         if (config.minTickWidth == 0) revert MinTickWidthMustBePositive();
 
         bytes32 incentiveId = IncentiveId.compute(key);
+        Incentive storage incentive = incentives[incentiveId];
+        if (incentive.lastAccrueTime > 0) {
+            // If the incentive had been created, only creator can operate it.
+            _checkRole(incentiveId);
+        } else {
+            if (reward <= 0) revert RewardMustBePositive();
+            // Initialize the incentive.
+            incentive.lastAccrueTime = uint32(key.startTime);
+            _grantRole(incentiveId, _msgSender());
+        }
 
-        incentives[incentiveId].remainingReward += reward;
-        incentives[incentiveId].lastAccrueTime = uint32(key.startTime);
+        // Operator can add reward or update configurations after intialization.
         incentiveConfigs[incentiveId] = config;
-
-        TransferHelperExtended.safeTransferFrom(address(key.rewardToken), _msgSender(), address(this), reward);
-
-        _grantRole(incentiveId, _msgSender());
-
-        emit IncentiveCreated(key.rewardToken, key.pool, key.startTime, key.endTime, key.refundee, reward);
+        if (reward > 0) {
+            incentive.remainingReward += reward;
+            TransferHelperExtended.safeTransferFrom(address(key.rewardToken), _msgSender(), address(this), reward);
+            emit IncentiveCreated(key.rewardToken, key.pool, key.startTime, key.endTime, key.refundee, reward);
+        }
     }
 
     /// @inheritdoc IUniswapV3Staker
@@ -142,15 +149,6 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         TransferHelperExtended.safeTransfer(address(key.rewardToken), key.refundee, refund);
 
         emit IncentiveEnded(incentiveId, refund);
-    }
-
-    /// @inheritdoc IUniswapV3Staker
-    function setIncentiveConfig(
-        bytes32 incentiveId,
-        IncentiveConfig memory config
-    ) external override onlyRole(incentiveId) {
-        if (config.minTickWidth == 0) revert MinTickWidthMustBePositive();
-        incentiveConfigs[incentiveId] = config;
     }
 
     /// @notice Upon receiving a Uniswap V3 ERC721, creates the token deposit setting owner to `from`. Also stakes token
