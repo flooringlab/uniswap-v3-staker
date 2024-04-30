@@ -29,12 +29,14 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param minPenaltyBips The minimum penalty as a percentage of the reward when liquidating
     /// @param minExitDuration The minimum duration for which staked positions should be kept
     /// @param liquidationBonusBips The bonus as a percentage of the reward for liquidators
+    /// @param twapSeconds The duration of the v3 oracle price that should be considered as a valid TWAP.
     struct IncentiveConfig {
         uint24 minTickWidth;
         uint32 penaltyDecayPeriod;
         uint16 minPenaltyBips;
         uint32 minExitDuration;
         uint16 liquidationBonusBips;
+        uint32 twapSeconds;
     }
 
     /// @notice The Uniswap V3 Factory
@@ -81,7 +83,8 @@ interface IUniswapV3Staker is IERC721Receiver {
             uint32 penaltyDecayPeriod,
             uint16 minPenaltyBips,
             uint32 minExitDuration,
-            uint16 liquidationBonusBips
+            uint16 liquidationBonusBips,
+            uint32 twapSeconds
         );
 
     /// @notice Returns information about a deposited NFT

@@ -318,6 +318,12 @@ describe('unit/Incentives', async () => {
           config: defaultIncentiveCfg(),
         })
 
+        const incentiveId = await helpers.getIncentiveId(createIncentiveResult)
+        {
+          const config = await context.staker.incentiveConfigs(incentiveId)
+          expect(config.twapSeconds).to.be.eq(0)
+        }
+
         await context.staker.connect(incentiveCreator).createIncentive(
           {
             rewardToken: createIncentiveResult.rewardToken.address,
@@ -326,14 +332,15 @@ describe('unit/Incentives', async () => {
             startTime: createIncentiveResult.startTime,
             endTime: createIncentiveResult.endTime,
           },
-          { ...defaultIncentiveCfg(), minExitDuration: BN(7 * 24 * 3600), minTickWidth: 128 },
+          { ...defaultIncentiveCfg(), minExitDuration: BN(7 * 24 * 3600), minTickWidth: 128, twapSeconds: 60 },
           BNe18(0),
         )
-
-        const incentiveId = await helpers.getIncentiveId(createIncentiveResult)
-        const config = await context.staker.incentiveConfigs(incentiveId)
-        expect(config.minExitDuration).to.be.eq(7 * 24 * 3600)
-        expect(config.minTickWidth).to.be.eq(128)
+        {
+          const config = await context.staker.incentiveConfigs(incentiveId)
+          expect(config.minExitDuration).to.be.eq(7 * 24 * 3600)
+          expect(config.minTickWidth).to.be.eq(128)
+          expect(config.twapSeconds).to.be.eq(60)
+        }
       })
 
       it('emits IncentiveEnded event', async () => {

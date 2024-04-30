@@ -697,5 +697,41 @@ describe('integration', async () => {
         'CannotLiquidateWhileActive',
       )
     })
+
+    it('liquidite with TWAP oracle', async () => {
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
+      await context.staker
+        .connect(actors.incentiveCreator())
+        .createIncentive(
+          incentiveKey,
+          { ...midIncentiveCfg(midpoint, 20, FeeAmount.MEDIUM), twapSeconds: BN(60) },
+          BN(0),
+        )
+      const trader = actors.traderUser0()
+      await helpers.pool.connect(trader).increaseObservationCardinalityNext(3)
+      const stakes = await stakeScenario()
+
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'down',
+        desiredValue: midpoint - 5,
+      })
+      await Time.setAndMine((await blockTimestamp()) + 60)
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 20,
+      })
+
+      await Time.setAndMine((await blockTimestamp()) + 30)
+      await expect(context.staker.connect(trader).unstakeToken(incentiveKey, stakes[0].tokenId)).to.be.revertedWith(
+        'CannotLiquidateWhileActive',
+      )
+
+      await Time.setAndMine((await blockTimestamp()) + 20)
+      context.staker.connect(trader).unstakeToken(incentiveKey, stakes[0].tokenId)
+    })
   })
 })

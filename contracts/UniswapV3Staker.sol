@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import './interfaces/IUniswapV3Staker.sol';
 import './libraries/IncentiveId.sol';
+import './libraries/Oracle.sol';
 import './libraries/RewardMath.sol';
 import './libraries/NFTPositionInfo.sol';
 import './libraries/TransferHelperExtended.sol';
@@ -311,7 +312,12 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             stake,
             incentiveConfigs[incentiveId],
             currentRewardPerLiquidity,
-            !_isPositionInRange(key.pool, deposit.tickLower, deposit.tickUpper)
+            !_isPositionInRange(
+                key.pool,
+                deposit.tickLower,
+                deposit.tickUpper,
+                incentiveConfigs[incentiveId].twapSeconds
+            )
         );
     }
 
@@ -342,7 +348,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             if (positionInfo.liquidity == 0) revert CannotStakeZeroLiquidity();
             if (incentiveConfig.minTickWidth > uint24(tickUpper - tickLower)) revert PositionRangeTooNarrow();
             /// Position should include current tick
-            if (!_isPositionInRange(pool, tickLower, tickUpper)) revert CurrentTickMustWithinRange();
+            if (!_isPositionInRange(pool, tickLower, tickUpper, 0)) revert CurrentTickMustWithinRange();
         }
 
         Incentive storage incentive = incentives[incentiveId];
@@ -416,7 +422,12 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
 
         bool isLiquidation = false;
         if (block.timestamp < key.endTime) {
-            bool inRange = _isPositionInRange(key.pool, deposit.tickLower, deposit.tickUpper);
+            bool inRange = _isPositionInRange(
+                key.pool,
+                deposit.tickLower,
+                deposit.tickUpper,
+                incentiveConfig.twapSeconds
+            );
             if (inRange && _msgSender() != deposit.owner) revert CannotLiquidateWhileActive();
 
             // active liquidity requires a minimum staking duration for exiting
@@ -433,8 +444,18 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         return isLiquidation;
     }
 
-    function _isPositionInRange(IUniswapV3Pool pool, int24 tickLower, int24 tickUpper) private view returns (bool) {
-        (, int24 tick, , , , , ) = pool.slot0();
+    function _isPositionInRange(
+        IUniswapV3Pool pool,
+        int24 tickLower,
+        int24 tickUpper,
+        uint32 twapSeconds
+    ) private view returns (bool) {
+        int24 tick;
+        if (twapSeconds == 0) {
+            (, tick, , , , , ) = pool.slot0();
+        } else {
+            tick = Oracle.consult(pool, twapSeconds);
+        }
         return tickLower <= tick && tick <= tickUpper;
     }
 }
