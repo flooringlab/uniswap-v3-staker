@@ -220,6 +220,7 @@ interface IUniswapV3Staker is IERC721Receiver {
     error StartTimeMustBeforeEndTime();
     error IncentiveDurationTooLong();
     error MinTickWidthMustBePositive();
+    error TWAPWindowTooSmall();
 
     error CannotEndIncentiveBeforeEndTime();
     error NoRefundAvailable();

@@ -108,6 +108,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         if (key.endTime - key.startTime > maxIncentiveDuration) revert IncentiveDurationTooLong();
 
         if (config.minTickWidth == 0) revert MinTickWidthMustBePositive();
+        if (config.twapSeconds == 0) revert TWAPWindowTooSmall();
 
         bytes32 incentiveId = IncentiveId.compute(key);
         Incentive storage incentive = incentives[incentiveId];
