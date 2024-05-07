@@ -19,8 +19,6 @@ import '@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
-import 'hardhat/console.sol';
-
 /// @title Uniswap V3 canonical staking interface
 contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradeable, AccessControlUpgradeable {
     /// @notice Represents a staking incentive
@@ -348,7 +346,8 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
             if (positionInfo.liquidity == 0) revert CannotStakeZeroLiquidity();
             if (incentiveConfig.minTickWidth > uint24(tickUpper - tickLower)) revert PositionRangeTooNarrow();
             /// Position should include current tick
-            if (!_isPositionInRange(pool, tickLower, tickUpper, 0)) revert CurrentTickMustWithinRange();
+            if (!_isPositionInRange(pool, tickLower, tickUpper, incentiveConfig.twapSeconds))
+                revert CurrentTickMustWithinRange();
         }
 
         Incentive storage incentive = incentives[incentiveId];
@@ -450,12 +449,7 @@ contract UniswapV3Staker is IUniswapV3Staker, MulticallUpgradeable, UUPSUpgradea
         int24 tickUpper,
         uint32 twapSeconds
     ) private view returns (bool) {
-        int24 tick;
-        if (twapSeconds == 0) {
-            (, tick, , , , , ) = pool.slot0();
-        } else {
-            tick = Oracle.consult(pool, twapSeconds);
-        }
+        int24 tick = Oracle.consult(pool, twapSeconds);
         return tickLower <= tick && tick <= tickUpper;
     }
 }

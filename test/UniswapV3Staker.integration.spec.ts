@@ -606,6 +606,7 @@ describe('integration', async () => {
         desiredValue: midpoint + 10,
       })
 
+      await Time.setAndMine((await blockTimestamp()) + 30)
       const { ownerReward, liquidatorReward } = await context.staker.getRewardInfo(incentiveKey, stakes[0].tokenId)
 
       await context.staker.connect(trader).unstakeToken(incentiveKey, stakes[0].tokenId)
@@ -636,6 +637,7 @@ describe('integration', async () => {
         desiredValue: midpoint + 10,
       })
 
+      await Time.setAndMine((await blockTimestamp()) + 30)
       const { ownerReward, liquidatorReward } = await context.staker.getRewardInfo(incentiveKey, stakes[0].tokenId)
 
       await context.staker.connect(stakes[0].lp).unstakeToken(incentiveKey, stakes[0].tokenId)
@@ -664,6 +666,7 @@ describe('integration', async () => {
         desiredValue: midpoint + 10,
       })
 
+      await Time.setAndMine((await blockTimestamp()) + 30)
       const { ownerReward, liquidatorReward } = await context.staker.getRewardInfo(incentiveKey, stakes[1].tokenId)
 
       await context.staker.connect(stakes[1].lp).unstakeToken(incentiveKey, stakes[1].tokenId)
@@ -692,6 +695,8 @@ describe('integration', async () => {
         direction: 'up',
         desiredValue: midpoint + 10,
       })
+
+      await Time.setAndMine((await blockTimestamp()) + 30)
 
       await expect(context.staker.connect(trader).unstakeToken(incentiveKey, stakes[1].tokenId)).to.be.revertedWith(
         'CannotLiquidateWhileActive',

@@ -321,7 +321,7 @@ describe('unit/Incentives', async () => {
         const incentiveId = await helpers.getIncentiveId(createIncentiveResult)
         {
           const config = await context.staker.incentiveConfigs(incentiveId)
-          expect(config.twapSeconds).to.be.eq(0)
+          expect(config.twapSeconds).to.be.eq(defaultIncentiveCfg().twapSeconds)
         }
 
         await context.staker.connect(incentiveCreator).createIncentive(

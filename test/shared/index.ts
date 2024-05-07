@@ -151,7 +151,7 @@ export const defaultIncentiveCfg = (
   tickLower: number = getMinTick(TICK_SPACINGS[feeTier]),
   tickUpper: number = getMaxTick(TICK_SPACINGS[feeTier]),
   minExitDuration: number = days(0.5),
-  twapSeconds: number = 0,
+  twapSeconds: number = 2,
 ) => ({
   minTickWidth: BigNumber.from(tickUpper - tickLower),
   penaltyDecayPeriod: BigNumber.from(days(1)),
