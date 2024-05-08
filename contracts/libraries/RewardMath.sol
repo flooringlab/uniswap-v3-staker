@@ -3,40 +3,68 @@ pragma solidity ^0.8.23;
 
 import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import 'hardhat/console.sol';
 
 /// @title Math for computing rewards
 /// @notice Allows computing rewards given some parameters of stakes and incentives
 library RewardMath {
-    /// @notice Compute the amount of rewards owed given parameters of the incentive and stake
-    /// @param totalRewardUnclaimed The total amount of unclaimed rewards left for an incentive
-    /// @param totalSecondsClaimedX128 How many full liquidity-seconds have been already claimed for the incentive
-    /// @param startTime When the incentive rewards began in epoch seconds
-    /// @param endTime When rewards are no longer being dripped out in epoch seconds
-    /// @param liquidity The amount of liquidity, assumed to be constant over the period over which the snapshots are measured
-    /// @param secondsPerLiquidityInsideInitialX128 The seconds per liquidity of the liquidity tick range as of the beginning of the period
-    /// @param secondsPerLiquidityInsideX128 The seconds per liquidity of the liquidity tick range as of the current block timestamp
-    /// @param currentTime The current block timestamp, which must be greater than or equal to the start time
-    /// @return reward The amount of rewards owed
-    /// @return secondsInsideX128 The total liquidity seconds inside the position's range for the duration of the stake
+    // multiplier for reward calc
+    uint256 private constant REWARD_PER_SHARE_PRECISION = 1e12;
+
     function computeRewardAmount(
-        uint256 totalRewardUnclaimed,
-        uint160 totalSecondsClaimedX128,
-        uint256 startTime,
+        uint256 liquidity,
+        uint256 lastRewardPerLiquidity,
+        uint256 currentRewardPerLiquidity
+    ) internal pure returns (uint256 reward) {
+        reward = FullMath.mulDiv(
+            liquidity,
+            (currentRewardPerLiquidity - lastRewardPerLiquidity),
+            REWARD_PER_SHARE_PRECISION
+        );
+    }
+
+    function computeRewardPerLiquidityDiff(
+        uint256 remainingReward,
+        uint256 totalLiquidity,
         uint256 endTime,
-        uint128 liquidity,
-        uint160 secondsPerLiquidityInsideInitialX128,
-        uint160 secondsPerLiquidityInsideX128,
+        uint256 lastAccrueTime,
         uint256 currentTime
-    ) internal pure returns (uint256 reward, uint160 secondsInsideX128) {
-        // this should never be called before the start time
-        assert(currentTime >= startTime);
+    ) internal pure returns (uint256 rewardPerLiquidityDiff, uint256 accruedReward) {
+        if (totalLiquidity == 0) return (0, 0);
 
-        // this operation is safe, as the difference cannot be greater than 1/stake.liquidity
-        secondsInsideX128 = (secondsPerLiquidityInsideX128 - secondsPerLiquidityInsideInitialX128) * liquidity;
+        if (currentTime > endTime) currentTime = endTime;
+        if (currentTime <= lastAccrueTime) return (0, 0);
 
-        uint256 totalSecondsUnclaimedX128 = ((Math.max(endTime, currentTime) - startTime) << 128) -
-            totalSecondsClaimedX128;
+        accruedReward = FullMath.mulDiv(remainingReward, (currentTime - lastAccrueTime), (endTime - lastAccrueTime));
 
-        reward = FullMath.mulDiv(totalRewardUnclaimed, secondsInsideX128, totalSecondsUnclaimedX128);
+        rewardPerLiquidityDiff = FullMath.mulDiv(accruedReward, REWARD_PER_SHARE_PRECISION, totalLiquidity);
+    }
+
+    function computeRewardDistribution(
+        uint256 reward,
+        uint256 stakedSince,
+        uint256 currentTime,
+        uint256 penaltyDecayPeriod,
+        uint256 minPenaltyBips,
+        uint256 liquidationBonusBips
+    ) internal pure returns (uint256 ownerEarning, uint256 liquidatorEarning, uint256 refunded) {
+        uint256 timeElapsed = currentTime - stakedSince;
+
+        // Initial decay, right shift operation simulates exponential decay by dividing by 2^n
+        uint256 penalty = reward >> (timeElapsed / penaltyDecayPeriod);
+
+        // Calculate the remaining time after the half-life period
+        timeElapsed %= penaltyDecayPeriod;
+
+        // Simulate linear decay for the part not covered by exponential decay
+        penalty = penalty - (FullMath.mulDiv(penalty, timeElapsed, penaltyDecayPeriod) >> 1);
+
+        // Ensure penalty is at least minPenaltyBips percentage of the reward
+        penalty = Math.max(penalty, FullMath.mulDiv(reward, minPenaltyBips, 10000));
+
+        // Calculate liquidatorEarning, refunded, and ownerEarning
+        liquidatorEarning = FullMath.mulDiv(penalty, liquidationBonusBips, 10000);
+        refunded = penalty - liquidatorEarning;
+        ownerEarning = reward - penalty;
     }
 }

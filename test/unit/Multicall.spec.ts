@@ -14,6 +14,8 @@ import {
   maxGas,
   defaultTicksArray,
   expect,
+  defaultIncentiveCfg,
+  BigNumberish,
 } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
 import { HelperCommands, ERC20Helper, incentiveResultToStakeAdapter } from '../helpers'
@@ -50,7 +52,7 @@ describe('unit/Multicall', () => {
       multicaller,
       [context.token0, context.token1],
       amountDesired,
-      context.nft.address
+      context.nft.address,
     )
     await mintPosition(context.nft.connect(multicaller), {
       token0: context.token0.address,
@@ -75,6 +77,7 @@ describe('unit/Multicall', () => {
         refundee: incentiveCreator.address,
         ...makeTimestamps(currentTime + 100),
       },
+      { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
       totalReward,
     ])
     await context.staker.connect(multicaller).multicall([createIncentiveTx], maxGas)
@@ -97,9 +100,10 @@ describe('unit/Multicall', () => {
     // Create three incentives
     const incentiveParams: HelperTypes.CreateIncentive.Args = {
       rewardToken: context.rewardToken,
-      poolAddress: context.poolObj.address,
+      pool: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),
+      config: { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
     }
 
     const incentive0 = await helpers.createIncentiveFlow(incentiveParams)
@@ -134,7 +138,8 @@ describe('unit/Multicall', () => {
       endTime,
       refundee: actors.incentiveCreator().address,
       totalReward: BN(10000),
-      poolAddress: context.pool01,
+      pool: context.pool01,
+      config: { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
     })
     await helpers.getIncentiveId(incentive0)
     const incentive1 = await helpers.createIncentiveFlow({
@@ -143,7 +148,8 @@ describe('unit/Multicall', () => {
       endTime,
       refundee: actors.incentiveCreator().address,
       totalReward: BN(10000),
-      poolAddress: context.pool01,
+      pool: context.pool01,
+      config: { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
     })
     await helpers.getIncentiveId(incentive1)
 
@@ -183,9 +189,10 @@ describe('unit/Multicall', () => {
 
     const incentive = await helpers.createIncentiveFlow({
       rewardToken: context.rewardToken,
-      poolAddress: context.poolObj.address,
+      pool: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),
+      config: { ...defaultIncentiveCfg(), minExitDuration: BN(0) },
     })
 
     const params: HelperTypes.MintDepositStake.Args = {
@@ -202,7 +209,7 @@ describe('unit/Multicall', () => {
     const { tokenId: tokenId1 } = await helpers.mintDepositStakeFlow(params)
     const { tokenId: tokenId2 } = await helpers.mintDepositStakeFlow(params)
 
-    const unstake = (tokenId) =>
+    const unstake = (tokenId: BigNumberish) =>
       context.staker.interface.encodeFunctionData('unstakeToken', [incentiveResultToStakeAdapter(incentive), tokenId])
 
     await context.staker.connect(multicaller).multicall([unstake(tokenId0), unstake(tokenId1), unstake(tokenId2)])

@@ -13,6 +13,7 @@ import {
   ActorFixture,
   erc20Wrap,
   makeTimestamps,
+  defaultIncentiveCfg,
 } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
 import { HelperCommands, ERC20Helper } from '../helpers'
@@ -51,7 +52,7 @@ describe('unit/Incentives', async () => {
           incentiveCreator,
           params.rewardToken ? await erc20Wrap(params?.rewardToken) : context.rewardToken,
           totalReward,
-          context.staker.address
+          context.staker.address,
         )
 
         const { startTime, endTime } = makeTimestamps(await blockTimestamp())
@@ -64,7 +65,8 @@ describe('unit/Incentives', async () => {
             endTime: params.endTime || endTime,
             refundee: params.refundee || incentiveCreator.address,
           },
-          totalReward
+          defaultIncentiveCfg(),
+          totalReward,
         )
       }
     })
@@ -89,7 +91,7 @@ describe('unit/Incentives', async () => {
             startTime,
             endTime,
             incentiveCreator.address,
-            totalReward
+            totalReward,
           )
       })
 
@@ -105,8 +107,8 @@ describe('unit/Incentives', async () => {
         })
 
         const incentive = await context.staker.incentives(incentiveId)
-        expect(incentive.totalRewardUnclaimed).to.equal(totalReward)
-        expect(incentive.totalSecondsClaimedX128).to.equal(BN(0))
+        expect(incentive.remainingReward).to.equal(totalReward)
+        expect(incentive.rewardPerLiquidity).to.equal(BN(0))
       })
 
       it('adds to existing incentives', async () => {
@@ -120,12 +122,11 @@ describe('unit/Incentives', async () => {
           endTime: timestamps.endTime,
           refundee: incentiveCreator.address,
         })
-        const { totalRewardUnclaimed, totalSecondsClaimedX128, numberOfStakes } = await context.staker.incentives(
-          incentiveId
-        )
-        expect(totalRewardUnclaimed).to.equal(totalReward.mul(2))
-        expect(totalSecondsClaimedX128).to.equal(0)
-        expect(numberOfStakes).to.equal(0)
+        const { remainingReward, rewardPerLiquidity, totalLiquidityStaked } =
+          await context.staker.incentives(incentiveId)
+        expect(remainingReward).to.equal(totalReward.mul(2))
+        expect(rewardPerLiquidity).to.equal(0)
+        expect(totalLiquidityStaked).to.equal(0)
       })
 
       it('does not override the existing numberOfStakes', async () => {
@@ -138,14 +139,12 @@ describe('unit/Incentives', async () => {
           pool: context.pool01,
         }
         await erc20Helper.ensureBalancesAndApprovals(actors.lpUser0(), rewardToken, BN(100), context.staker.address)
-        await context.staker.connect(actors.lpUser0()).createIncentive(incentiveKey, 100)
+        await context.staker.connect(actors.lpUser0()).createIncentive(incentiveKey, defaultIncentiveCfg(), 100)
         const incentiveId = await context.testIncentiveId.compute(incentiveKey)
-        let { totalRewardUnclaimed, totalSecondsClaimedX128, numberOfStakes } = await context.staker.incentives(
-          incentiveId
-        )
-        expect(totalRewardUnclaimed).to.equal(100)
-        expect(totalSecondsClaimedX128).to.equal(0)
-        expect(numberOfStakes).to.equal(0)
+        let { remainingReward, rewardPerLiquidity, totalLiquidityStaked } = await context.staker.incentives(incentiveId)
+        expect(remainingReward).to.equal(100)
+        expect(rewardPerLiquidity).to.equal(0)
+        expect(totalLiquidityStaked).to.equal(0)
         expect(await rewardToken.balanceOf(context.staker.address)).to.eq(100)
         const { tokenId } = await helpers.mintFlow({
           lp: actors.lpUser0(),
@@ -156,21 +155,22 @@ describe('unit/Incentives', async () => {
           tokenId,
         })
 
+        const { liquidity: positionLiquidity } = await context.nft.positions(tokenId)
         await erc20Helper.ensureBalancesAndApprovals(actors.lpUser0(), rewardToken, BN(50), context.staker.address)
 
         await Time.set(testTimestamps.startTime)
         await context.staker
           .connect(actors.lpUser0())
           .multicall([
-            context.staker.interface.encodeFunctionData('createIncentive', [incentiveKey, 50]),
+            context.staker.interface.encodeFunctionData('createIncentive', [incentiveKey, defaultIncentiveCfg(), 50]),
             context.staker.interface.encodeFunctionData('stakeToken', [incentiveKey, tokenId]),
           ])
-        ;({ totalRewardUnclaimed, totalSecondsClaimedX128, numberOfStakes } = await context.staker
+        ;({ remainingReward, rewardPerLiquidity, totalLiquidityStaked } = await context.staker
           .connect(actors.lpUser0())
           .incentives(incentiveId))
-        expect(totalRewardUnclaimed).to.equal(150)
-        expect(totalSecondsClaimedX128).to.equal(0)
-        expect(numberOfStakes).to.equal(1)
+        expect(remainingReward).to.equal(150)
+        expect(rewardPerLiquidity).to.equal(0)
+        expect(totalLiquidityStaked).to.equal(positionLiquidity)
       })
 
       it('has gas cost', async () => {
@@ -190,9 +190,10 @@ describe('unit/Incentives', async () => {
               endTime,
               refundee: incentiveCreator.address,
             },
-            totalReward
-          )
-        ).to.be.revertedWith('TransferHelperExtended::safeTransferFrom: call to non-contract')
+            defaultIncentiveCfg(),
+            totalReward,
+          ),
+        ).to.be.revertedWith('NonTokenContract')
       })
 
       describe('invalid timestamps', () => {
@@ -207,32 +208,24 @@ describe('unit/Incentives', async () => {
 
           expect(now).to.be.lessThan(params.endTime, 'test setup: after end time')
 
-          await expect(subject(params)).to.be.revertedWith(
-            'UniswapV3Staker::createIncentive: start time must be now or in the future'
-          )
+          await expect(subject(params)).to.be.revertedWith('StartTimeMustBeNowOrFuture')
         })
 
         it('end time is before start time', async () => {
           const params = makeTimestamps(await blockTimestamp())
           params.endTime = params.startTime - 10
-          await expect(subject(params)).to.be.revertedWith(
-            'UniswapV3Staker::createIncentive: start time must be before end time'
-          )
+          await expect(subject(params)).to.be.revertedWith('StartTimeMustBeforeEndTime')
         })
 
         it('start time is too far into the future', async () => {
           const params = makeTimestamps((await blockTimestamp()) + 2 ** 32 + 1)
-          await expect(subject(params)).to.be.revertedWith(
-            'UniswapV3Staker::createIncentive: start time too far into future'
-          )
+          await expect(subject(params)).to.be.revertedWith('StartTimeTooFarInFuture')
         })
 
         it('end time is within valid duration of start time', async () => {
           const params = makeTimestamps(await blockTimestamp())
           params.endTime = params.startTime + 2 ** 32 + 1
-          await expect(subject(params)).to.be.revertedWith(
-            'UniswapV3Staker::createIncentive: incentive duration is too long'
-          )
+          await expect(subject(params)).to.be.revertedWith('IncentiveDurationTooLong')
         })
       })
 
@@ -248,9 +241,39 @@ describe('unit/Incentives', async () => {
                 refundee: incentiveCreator.address,
                 ...makeTimestamps(now, 1_000),
               },
-              BNe18(0)
-            )
-          ).to.be.revertedWith('UniswapV3Staker::createIncentive: reward must be positive')
+              defaultIncentiveCfg(),
+              BNe18(0),
+            ),
+          ).to.be.revertedWith('RewardMustBePositive')
+        })
+      })
+
+      describe('invalid operator to update incentive', () => {
+        it('invalid operator without role', async () => {
+          timestamps = makeTimestamps(await blockTimestamp())
+
+          const createIncentiveResult = await helpers.createIncentiveFlow({
+            ...timestamps,
+            rewardToken: context.rewardToken,
+            pool: context.poolObj.address,
+            refundee: incentiveCreator.address,
+            totalReward,
+            config: defaultIncentiveCfg(),
+          })
+
+          await expect(
+            context.staker.connect(actors.lpUser0()).createIncentive(
+              {
+                rewardToken: createIncentiveResult.rewardToken.address,
+                pool: createIncentiveResult.pool,
+                refundee: createIncentiveResult.refundee,
+                startTime: createIncentiveResult.startTime,
+                endTime: createIncentiveResult.endTime,
+              },
+              defaultIncentiveCfg(),
+              BNe18(0),
+            ),
+          ).to.be.revertedWith('AccessControlUnauthorizedAccount')
         })
       })
     })
@@ -266,8 +289,9 @@ describe('unit/Incentives', async () => {
       createIncentiveResult = await helpers.createIncentiveFlow({
         ...timestamps,
         rewardToken: context.rewardToken,
-        poolAddress: context.poolObj.address,
+        pool: context.poolObj.address,
         totalReward,
+        config: defaultIncentiveCfg(),
       })
 
       subject = async (params: Partial<ContractParams.EndIncentive> = {}) => {
@@ -282,6 +306,43 @@ describe('unit/Incentives', async () => {
     })
 
     describe('works and', () => {
+      it('update incentive config', async () => {
+        timestamps = makeTimestamps(await blockTimestamp())
+
+        createIncentiveResult = await helpers.createIncentiveFlow({
+          ...timestamps,
+          rewardToken: context.rewardToken,
+          pool: context.poolObj.address,
+          refundee: incentiveCreator.address,
+          totalReward,
+          config: defaultIncentiveCfg(),
+        })
+
+        const incentiveId = await helpers.getIncentiveId(createIncentiveResult)
+        {
+          const config = await context.staker.incentiveConfigs(incentiveId)
+          expect(config.twapSeconds).to.be.eq(defaultIncentiveCfg().twapSeconds)
+        }
+
+        await context.staker.connect(incentiveCreator).createIncentive(
+          {
+            rewardToken: createIncentiveResult.rewardToken.address,
+            pool: createIncentiveResult.pool,
+            refundee: createIncentiveResult.refundee,
+            startTime: createIncentiveResult.startTime,
+            endTime: createIncentiveResult.endTime,
+          },
+          { ...defaultIncentiveCfg(), minExitDuration: BN(7 * 24 * 3600), minTickWidth: 128, twapSeconds: 60 },
+          BNe18(0),
+        )
+        {
+          const config = await context.staker.incentiveConfigs(incentiveId)
+          expect(config.minExitDuration).to.be.eq(7 * 24 * 3600)
+          expect(config.minTickWidth).to.be.eq(128)
+          expect(config.twapSeconds).to.be.eq(60)
+        }
+      })
+
       it('emits IncentiveEnded event', async () => {
         await Time.set(timestamps.endTime + 10)
 
@@ -294,16 +355,13 @@ describe('unit/Incentives', async () => {
 
       it('deletes incentives[key]', async () => {
         const incentiveId = await helpers.getIncentiveId(createIncentiveResult)
-        expect((await context.staker.incentives(incentiveId)).totalRewardUnclaimed).to.be.gt(0)
+        expect((await context.staker.incentives(incentiveId)).remainingReward).to.be.gt(0)
 
         await Time.set(timestamps.endTime + 1)
         await subject({})
-        const { totalRewardUnclaimed, totalSecondsClaimedX128, numberOfStakes } = await context.staker.incentives(
-          incentiveId
-        )
-        expect(totalRewardUnclaimed).to.eq(0)
-        expect(totalSecondsClaimedX128).to.eq(0)
-        expect(numberOfStakes).to.eq(0)
+        const { remainingReward, totalLiquidityStaked } = await context.staker.incentives(incentiveId)
+        expect(remainingReward).to.eq(0)
+        expect(totalLiquidityStaked).to.eq(0)
       })
 
       it('has gas cost', async () => {
@@ -315,9 +373,7 @@ describe('unit/Incentives', async () => {
     describe('reverts when', async () => {
       it('block.timestamp <= end time', async () => {
         await Time.set(timestamps.endTime - 10)
-        await expect(subject({})).to.be.revertedWith(
-          'UniswapV3Staker::endIncentive: cannot end incentive before end time'
-        )
+        await expect(subject({})).to.be.revertedWith('CannotEndIncentiveBeforeEndTime')
       })
 
       it('incentive does not exist', async () => {
@@ -326,8 +382,8 @@ describe('unit/Incentives', async () => {
         await expect(
           subject({
             startTime: (await blockTimestamp()) + 1000,
-          })
-        ).to.be.revertedWith('UniswapV3Staker::endIncentive: no refund available')
+          }),
+        ).to.be.revertedWith('NoRefundAvailable')
       })
 
       it('incentive has stakes', async () => {
@@ -344,9 +400,7 @@ describe('unit/Incentives', async () => {
 
         // Adjust the block.timestamp so it is after the claim deadline
         await Time.set(timestamps.endTime + 1)
-        await expect(subject({})).to.be.revertedWith(
-          'UniswapV3Staker::endIncentive: cannot end incentive while deposits are staked'
-        )
+        await expect(subject({})).to.be.revertedWith('CannotEndIncentiveWhileStaked')
       })
     })
   })

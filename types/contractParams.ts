@@ -1,4 +1,5 @@
 import { BigNumberish } from 'ethers'
+import { IUniswapV3Staker } from '../typechain-v5'
 
 export module ContractParams {
   export type Timestamps = {
@@ -6,11 +7,7 @@ export module ContractParams {
     endTime: number
   }
 
-  export type IncentiveKey = {
-    pool: string
-    rewardToken: string
-    refundee: string
-  } & Timestamps
+  export type IncentiveKey = Omit<IUniswapV3Staker.IncentiveKeyStruct, keyof Timestamps> & Timestamps
 
   export type CreateIncentive = IncentiveKey & {
     reward: BigNumberish

@@ -6,7 +6,7 @@ export function compareToken(a: { address: string }, b: { address: string }): -1
 
 export function sortedTokens(
   a: { address: string },
-  b: { address: string }
+  b: { address: string },
 ): [typeof a, typeof b] | [typeof b, typeof a] {
   return compareToken(a, b) < 0 ? [a, b] : [b, a]
 }

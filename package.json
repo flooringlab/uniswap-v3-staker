@@ -22,7 +22,7 @@
     "!artifacts/contracts/base/**/*"
   ],
   "engines": {
-    "node": ">=10"
+    "node": ">=18"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.1",
@@ -68,8 +68,8 @@
     "compile": "hardhat compile",
     "lint": "eslint . --ext .ts",
     "prettier:check": "prettier-check test/**/*.ts types/*.ts",
-    "lint:sol": "prettier --list-different --plugin=prettier-plugin-solidity 'contracts/**/*.sol'",
-    "prettier:sol-write": "prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'",
+    "lint:ts": "prettier --write test/**/*.ts types/*.ts",
+    "lint:sol": "prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'",
     "size-contracts": "hardhat compile && hardhat size-contracts",
     "test": "hardhat test",
     "clear-cache": "rm -rf artifacts/ cache/ typechain-v5/ typechain-v6/",

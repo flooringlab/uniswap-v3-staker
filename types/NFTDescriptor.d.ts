@@ -31,8 +31,8 @@ interface NFTDescriptorInterface extends ethers.utils.Interface {
         tickSpacing: BigNumberish
         fee: BigNumberish
         poolAddress: string
-      }
-    ]
+      },
+    ],
   ): string
 
   decodeFunctionResult(functionFragment: 'constructTokenURI', data: BytesLike): Result
@@ -71,7 +71,7 @@ export class NFTDescriptor extends Contract {
         fee: BigNumberish
         poolAddress: string
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<{
       0: string
     }>
@@ -93,7 +93,7 @@ export class NFTDescriptor extends Contract {
         fee: BigNumberish
         poolAddress: string
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<{
       0: string
     }>
@@ -116,7 +116,7 @@ export class NFTDescriptor extends Contract {
       fee: BigNumberish
       poolAddress: string
     },
-    overrides?: CallOverrides
+    overrides?: CallOverrides,
   ): Promise<string>
 
   'constructTokenURI(tuple)'(
@@ -136,7 +136,7 @@ export class NFTDescriptor extends Contract {
       fee: BigNumberish
       poolAddress: string
     },
-    overrides?: CallOverrides
+    overrides?: CallOverrides,
   ): Promise<string>
 
   callStatic: {
@@ -157,7 +157,7 @@ export class NFTDescriptor extends Contract {
         fee: BigNumberish
         poolAddress: string
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<string>
 
     'constructTokenURI(tuple)'(
@@ -177,7 +177,7 @@ export class NFTDescriptor extends Contract {
         fee: BigNumberish
         poolAddress: string
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<string>
   }
 
@@ -201,7 +201,7 @@ export class NFTDescriptor extends Contract {
         fee: BigNumberish
         poolAddress: string
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
 
     'constructTokenURI(tuple)'(
@@ -221,7 +221,7 @@ export class NFTDescriptor extends Contract {
         fee: BigNumberish
         poolAddress: string
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<BigNumber>
   }
 
@@ -243,7 +243,7 @@ export class NFTDescriptor extends Contract {
         fee: BigNumberish
         poolAddress: string
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<PopulatedTransaction>
 
     'constructTokenURI(tuple)'(
@@ -263,7 +263,7 @@ export class NFTDescriptor extends Contract {
         fee: BigNumberish
         poolAddress: string
       },
-      overrides?: CallOverrides
+      overrides?: CallOverrides,
     ): Promise<PopulatedTransaction>
   }
 }

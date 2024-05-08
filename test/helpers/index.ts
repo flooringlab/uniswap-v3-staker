@@ -12,6 +12,7 @@ import {
   getMinTick,
   getMaxTick,
   BN,
+  TICK_SPACINGS,
 } from '../shared/index'
 import _ from 'lodash'
 import {
@@ -112,18 +113,22 @@ export class HelperCommands {
 
     await this.staker.connect(incentiveCreator).createIncentive(
       {
-        pool: params.poolAddress,
+        pool: params.pool,
         rewardToken: params.rewardToken.address,
         ...times,
         refundee: params.refundee || incentiveCreator.address,
       },
+      params.config,
       params.totalReward,
     )
 
     return {
-      ..._.pick(params, ['poolAddress', 'totalReward', 'rewardToken']),
       ...times,
+      rewardToken: params.rewardToken,
+      pool: params.pool,
+      totalReward: params.totalReward,
       refundee: params.refundee || incentiveCreator.address,
+      config: params.config,
     }
   }
 
@@ -213,8 +218,8 @@ export class HelperCommands {
       token0: params.tokens[0].address,
       token1: params.tokens[1].address,
       fee,
-      tickLower: params.tickLower || getMinTick(fee),
-      tickUpper: params.tickUpper || getMaxTick(fee),
+      tickLower: params.tickLower || getMinTick(TICK_SPACINGS[fee]),
+      tickUpper: params.tickUpper || getMaxTick(TICK_SPACINGS[fee]),
       recipient: params.lp.address,
       amount0Desired,
       amount1Desired,
@@ -285,7 +290,7 @@ export class HelperCommands {
       await this.staker.connect(incentiveCreator).endIncentive(
         _.assign({}, _.pick(params.createIncentiveResult, ['startTime', 'endTime']), {
           rewardToken: rewardToken.address,
-          pool: params.createIncentiveResult.poolAddress,
+          pool: params.createIncentiveResult.pool,
           refundee: params.createIncentiveResult.refundee,
         }),
       )
@@ -311,7 +316,7 @@ export class HelperCommands {
   getIncentiveId: HelperTypes.GetIncentiveId.Command = async (params) => {
     return this.testIncentiveId.compute({
       rewardToken: params.rewardToken.address,
-      pool: params.poolAddress,
+      pool: params.pool,
       startTime: params.startTime,
       endTime: params.endTime,
       refundee: params.refundee,
@@ -426,7 +431,7 @@ export class ERC20Helper {
 type IncentiveAdapterFunc = (params: HelperTypes.CreateIncentive.Result) => ContractParams.IncentiveKey
 
 export const incentiveResultToStakeAdapter: IncentiveAdapterFunc = (params) => ({
-  pool: params.poolAddress,
+  pool: params.pool,
   startTime: params.startTime,
   endTime: params.endTime,
   rewardToken: params.rewardToken.address,

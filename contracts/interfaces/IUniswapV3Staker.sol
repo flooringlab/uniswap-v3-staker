@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.23;
-pragma abicoder v2;
 
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
@@ -25,6 +24,21 @@ interface IUniswapV3Staker is IERC721Receiver {
         address refundee;
     }
 
+    /// @param minTickWidth The minimum width that staked positions should be kept
+    /// @param penaltyDecayPeriod The period over which the penalty for liquidation decays
+    /// @param minPenaltyBips The minimum penalty as a percentage of the reward when liquidating
+    /// @param minExitDuration The minimum duration for which staked positions should be kept
+    /// @param liquidationBonusBips The bonus as a percentage of the reward for liquidators
+    /// @param twapSeconds The duration of the v3 oracle price that should be considered as a valid TWAP.
+    struct IncentiveConfig {
+        uint24 minTickWidth;
+        uint32 penaltyDecayPeriod;
+        uint16 minPenaltyBips;
+        uint32 minExitDuration;
+        uint16 liquidationBonusBips;
+        uint32 twapSeconds;
+    }
+
     /// @notice The Uniswap V3 Factory
     function factory() external view returns (IUniswapV3Factory);
 
@@ -39,12 +53,39 @@ interface IUniswapV3Staker is IERC721Receiver {
 
     /// @notice Represents a staking incentive
     /// @param incentiveId The ID of the incentive computed from its parameters
-    /// @return totalRewardUnclaimed The amount of reward token not yet claimed by users
-    /// @return totalSecondsClaimedX128 Total liquidity-seconds claimed, represented as a UQ32.128
-    /// @return numberOfStakes The count of deposits that are currently staked for the incentive
+    /// @return remainingReward The amount of reward token not yet claimed by users
+    /// @return accountedReward The amount of reward token not yet claimed by users
+    /// @return rewardPerShare Accumulated reward Per share
+    /// @return totalLiquidityStaked Total liquidity staked
+    /// @return lastAccrueTime Last time rewardPerShare was updated
     function incentives(
         bytes32 incentiveId
-    ) external view returns (uint256 totalRewardUnclaimed, uint160 totalSecondsClaimedX128, uint96 numberOfStakes);
+    )
+        external
+        view
+        returns (
+            uint256 remainingReward,
+            uint256 accountedReward,
+            uint256 rewardPerShare,
+            uint224 totalLiquidityStaked,
+            uint32 lastAccrueTime
+        );
+
+    /// @notice Represents a staking incentive config
+    /// @param incentiveId The ID of the incentive computed from its parameters
+    function incentiveConfigs(
+        bytes32 incentiveId
+    )
+        external
+        view
+        returns (
+            uint24 minTickWidth,
+            uint32 penaltyDecayPeriod,
+            uint16 minPenaltyBips,
+            uint32 minExitDuration,
+            uint16 liquidationBonusBips,
+            uint32 twapSeconds
+        );
 
     /// @notice Returns information about a deposited NFT
     /// @return owner The owner of the deposited NFT
@@ -58,12 +99,13 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @notice Returns information about a staked liquidity NFT
     /// @param tokenId The ID of the staked token
     /// @param incentiveId The ID of the incentive for which the token is staked
-    /// @return secondsPerLiquidityInsideInitialX128 secondsPerLiquidity represented as a UQ32.128
-    /// @return liquidity The amount of liquidity in the NFT as of the last time the rewards were computed
+    /// @return lastRewardPerShare The last `rewardPerShare` used to calculate the reward of the `tokenId`
+    /// @return liquidity The amount of liquidity in the NFT
+    /// @return stakedSince The timestamp indicating when the token was staked
     function stakes(
         uint256 tokenId,
         bytes32 incentiveId
-    ) external view returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity);
+    ) external view returns (uint256 lastRewardPerShare, uint128 liquidity, uint32 stakedSince);
 
     /// @notice Returns amounts of reward tokens owed to a given address according to the last time all stakes were updated
     /// @param rewardToken The token for which to check rewards
@@ -73,8 +115,9 @@ interface IUniswapV3Staker is IERC721Receiver {
 
     /// @notice Creates a new liquidity mining incentive program
     /// @param key Details of the incentive to create
+    /// @param config Config of the incentive to create
     /// @param reward The amount of reward tokens to be distributed
-    function createIncentive(IncentiveKey memory key, uint256 reward) external;
+    function createIncentive(IncentiveKey memory key, IncentiveConfig memory config, uint128 reward) external;
 
     /// @notice Ends an incentive after the incentive end time has passed and all stakes have been withdrawn
     /// @param key Details of the incentive to end
@@ -116,11 +159,17 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @notice Calculates the reward amount that will be received for the given stake
     /// @param key The key of the incentive
     /// @param tokenId The ID of the token
-    /// @return reward The reward accrued to the NFT for the given incentive thus far
+    /// @return ownerReward The reward accrued to the NFT for the given incentive thus far
+    /// @return liquidatorReward The reward accrued to the NFT for the given incentive thus far
+    /// @return refunded The reward accrued to the NFT for the given incentive thus far
+    /// @return currentRewardPerLiquidity current reward per share to compute the reward
     function getRewardInfo(
         IncentiveKey memory key,
         uint256 tokenId
-    ) external returns (uint256 reward, uint160 secondsInsideX128);
+    )
+        external
+        view
+        returns (uint256 ownerReward, uint256 liquidatorReward, uint256 refunded, uint256 currentRewardPerLiquidity);
 
     /// @notice Event emitted when a liquidity mining incentive has been created
     /// @param rewardToken The token being distributed as a reward
@@ -164,4 +213,36 @@ interface IUniswapV3Staker is IERC721Receiver {
     /// @param to The address where claimed rewards were sent to
     /// @param reward The amount of reward tokens claimed
     event RewardClaimed(address indexed to, uint256 reward);
+
+    error RewardMustBePositive();
+    error StartTimeMustBeNowOrFuture();
+    error StartTimeTooFarInFuture();
+    error StartTimeMustBeforeEndTime();
+    error IncentiveDurationTooLong();
+    error MinTickWidthMustBePositive();
+    error TWAPWindowTooSmall();
+
+    error CannotEndIncentiveBeforeEndTime();
+    error NoRefundAvailable();
+    error CannotEndIncentiveWhileStaked();
+
+    error NotUniV3NFT();
+    error InvalidTransferRecipient();
+    error NotDepositOwner();
+    error CannotWithdrawToStaker();
+    error CannotWithdrawWhileStaked();
+
+    error CannotLiquidateByContract();
+    error CannotLiquidateWhileActive();
+    error UnstakeRequireMinDuration();
+
+    error StakeNotExist();
+    error IncentiveNotStarted();
+    error IncentiveWasEnded();
+    error IncentiveNotExist();
+    error TokenAlreadyStaked();
+    error PoolNotMatched();
+    error CannotStakeZeroLiquidity();
+    error PositionRangeTooNarrow();
+    error CurrentTickMustWithinRange();
 }

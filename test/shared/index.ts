@@ -6,7 +6,7 @@ export * from './actors'
 export * from './logging'
 export * from './ticks'
 
-import { FeeAmount } from './external/v3-periphery/constants'
+import { FeeAmount, TICK_SPACINGS } from './external/v3-periphery/constants'
 import { provider } from './provider'
 import { BigNumber, BigNumberish, Contract, ContractTransaction } from 'ethers'
 import { TransactionReceipt, TransactionResponse } from '@ethersproject/abstract-provider'
@@ -21,6 +21,7 @@ import { jestSnapshotPlugin } from 'mocha-chai-jest-snapshot'
 import { IUniswapV3Pool, TestERC20 } from '../../typechain-v5'
 import { isArray, isString } from 'lodash'
 import { ethers } from 'hardhat'
+import { getMaxTick, getMinTick } from './external/v3-periphery/ticks'
 
 export const { MaxUint256 } = constants
 
@@ -144,3 +145,25 @@ export const makeTimestamps = (n: number, duration: number = 1_000) => ({
   startTime: n + 100,
   endTime: n + 100 + duration,
 })
+
+export const defaultIncentiveCfg = (
+  feeTier: FeeAmount = FeeAmount.MEDIUM,
+  tickLower: number = getMinTick(TICK_SPACINGS[feeTier]),
+  tickUpper: number = getMaxTick(TICK_SPACINGS[feeTier]),
+  minExitDuration: number = days(0.5),
+  twapSeconds: number = 2,
+) => ({
+  minTickWidth: BigNumber.from(tickUpper - tickLower),
+  penaltyDecayPeriod: BigNumber.from(days(1)),
+  minPenaltyBips: BigNumber.from(200),
+  minExitDuration: BigNumber.from(minExitDuration),
+  liquidationBonusBips: BigNumber.from(3000),
+  twapSeconds: BigNumber.from(twapSeconds),
+})
+
+export const midIncentiveCfg = (midpoint: number = 0, width: number = 20, feeTier: FeeAmount = FeeAmount.MEDIUM) =>
+  defaultIncentiveCfg(
+    feeTier,
+    midpoint - (width / 2) * TICK_SPACINGS[feeTier],
+    midpoint + (width / 2) * TICK_SPACINGS[feeTier],
+  )

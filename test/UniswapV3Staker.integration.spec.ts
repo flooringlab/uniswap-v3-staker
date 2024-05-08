@@ -19,6 +19,8 @@ import {
   getCurrentTick,
   BNe,
   mintPosition,
+  defaultIncentiveCfg,
+  midIncentiveCfg,
 } from './shared'
 import { createTimeMachine } from './shared/time'
 import { ERC20Helper, HelperCommands, incentiveResultToStakeAdapter } from './helpers'
@@ -75,8 +77,9 @@ describe('integration', async () => {
         startTime,
         endTime,
         rewardToken,
-        poolAddress: context.pool01,
+        pool: context.pool01,
         totalReward,
+        config: defaultIncentiveCfg(),
       })
 
       const params = {
@@ -395,7 +398,7 @@ describe('integration', async () => {
           deadline: (await blockTimestamp()) + 1000,
         })
 
-        await Time.set(createIncentiveResult.endTime + 1)
+        await Time.setAndMine(createIncentiveResult.endTime + 1)
 
         const unstakes = await Promise.all(
           stakes.map(({ lp, tokenId }) =>
@@ -415,18 +418,16 @@ describe('integration', async () => {
          * Incentive Start -> Halfway Through:
          * 3 LPs, all staking the same amount. Each LP gets roughly (totalReward/2) * (1/3)
          */
-        const firstHalfRewards = totalReward.div(BN('2'))
 
         /**
          * Halfway Through -> Incentive End:
          * 4 LPs, all providing the same liquidity. Only 3 LPs are staking, so they should
          * each get 1/4 the liquidity for that time. So That's 1/4 * 1/2 * 3_000e18 per staked LP.
          * */
-        const secondHalfRewards = totalReward.div(BN('2')).mul('3').div('4')
         const rewardsEarned = bnSum(unstakes.map((s) => s.balance))
         expect(rewardsEarned).to.be.closeTo(
           // @ts-ignore
-          firstHalfRewards.add(secondHalfRewards),
+          totalReward,
           BNe(5, 16),
         )
 
@@ -445,12 +446,20 @@ describe('integration', async () => {
       createIncentiveResult: HelperTypes.CreateIncentive.Result
       helpers: HelperCommands
       context: TestContext
+      midpoint: number
+      stakeScenario: () => Promise<HelperTypes.MintDepositStake.Result[]>
     }
     let subject: TestSubject
 
     const totalReward = BNe18(3_000)
     const duration = days(100)
     const baseAmount = BNe18(2)
+
+    type Position = {
+      lp: Wallet
+      amounts: [BigNumber, BigNumber]
+      ticks: [number, number]
+    }
 
     const scenario: Fixture<TestSubject> = async (_wallets, _provider) => {
       const context = await uniswapFixture(_wallets, _provider)
@@ -461,18 +470,61 @@ describe('integration', async () => {
       const startTime = epoch + 1_000
       const endTime = startTime + duration
 
+      let midpoint = await getCurrentTick(context.poolObj.connect(actors.lpUser0()))
       const createIncentiveResult = await helpers.createIncentiveFlow({
         startTime,
         endTime,
         rewardToken: context.rewardToken,
-        poolAddress: context.pool01,
+        pool: context.pool01,
         totalReward,
+        config: midIncentiveCfg(midpoint, 20, FeeAmount.MEDIUM),
       })
+
+      const stakeScenario = async () => {
+        const tokensToStake: [TestERC20, TestERC20] = [context.tokens[0], context.tokens[1]]
+        const positions: Array<Position> = [
+          // lpUser0 stakes 2e18 from min-0
+          {
+            lp: actors.lpUser0(),
+            amounts: [baseAmount, baseAmount],
+            ticks: [getMinTick(TICK_SPACINGS[FeeAmount.MEDIUM]), midpoint],
+          },
+          // lpUser1 stakes 4e18 from 0-max
+          {
+            lp: actors.lpUser1(),
+            amounts: [baseAmount.mul(2), baseAmount.mul(2)],
+            ticks: [midpoint, getMaxTick(TICK_SPACINGS[FeeAmount.MEDIUM])],
+          },
+          // lpUser2 stakes 8e18 from 0-max
+          {
+            lp: actors.lpUser2(),
+            amounts: [baseAmount.mul(4), baseAmount.mul(4)],
+            ticks: [midpoint, getMaxTick(TICK_SPACINGS[FeeAmount.MEDIUM])],
+          },
+        ]
+        Time.set(createIncentiveResult.startTime + 1)
+        const stakes: any[] = []
+        for (const position of positions) {
+          stakes.push(
+            await helpers.mintDepositStakeFlow({
+              lp: position.lp,
+              tokensToStake,
+              ticks: position.ticks,
+              amountsToStake: position.amounts,
+              createIncentiveResult,
+            }),
+          )
+        }
+
+        return stakes
+      }
 
       return {
         context,
         helpers,
         createIncentiveResult,
+        midpoint,
+        stakeScenario,
       }
     }
 
@@ -480,63 +532,10 @@ describe('integration', async () => {
       subject = await loadFixture(scenario)
     })
 
-    it('rewards based on how long they are in range', async () => {
-      const { helpers, context, createIncentiveResult } = subject
-      type Position = {
-        lp: Wallet
-        amounts: [BigNumber, BigNumber]
-        ticks: [number, number]
-      }
+    it('rewards based on how long they are staked without liquidation', async () => {
+      const { helpers, createIncentiveResult, midpoint, stakeScenario } = subject
 
-      let midpoint = await getCurrentTick(context.poolObj.connect(actors.lpUser0()))
-
-      const positions: Array<Position> = [
-        // lpUser0 stakes 2e18 from min-0
-        {
-          lp: actors.lpUser0(),
-          amounts: [baseAmount, baseAmount],
-          ticks: [getMinTick(TICK_SPACINGS[FeeAmount.MEDIUM]), midpoint],
-        },
-        // lpUser1 stakes 4e18 from 0-max
-        {
-          lp: actors.lpUser1(),
-          amounts: [baseAmount.mul(2), baseAmount.mul(2)],
-          ticks: [midpoint, getMaxTick(TICK_SPACINGS[FeeAmount.MEDIUM])],
-        },
-        // lpUser2 stakes 8e18 from 0-max
-        {
-          lp: actors.lpUser2(),
-          amounts: [baseAmount.mul(4), baseAmount.mul(4)],
-          ticks: [midpoint, getMaxTick(TICK_SPACINGS[FeeAmount.MEDIUM])],
-        },
-      ]
-
-      const tokensToStake: [TestERC20, TestERC20] = [context.tokens[0], context.tokens[1]]
-
-      Time.set(createIncentiveResult.startTime + 1)
-      const stakes = new Array(3)
-      stakes[0] = await helpers.mintDepositStakeFlow({
-        lp: positions[0].lp,
-        tokensToStake,
-        ticks: positions[0].ticks,
-        amountsToStake: positions[0].amounts,
-        createIncentiveResult,
-      })
-      stakes[1] = await helpers.mintDepositStakeFlow({
-        lp: positions[1].lp,
-        tokensToStake,
-        ticks: positions[1].ticks,
-        amountsToStake: positions[1].amounts,
-        createIncentiveResult,
-      })
-      stakes[2] = await helpers.mintDepositStakeFlow({
-        lp: positions[2].lp,
-        tokensToStake,
-        ticks: positions[2].ticks,
-        amountsToStake: positions[2].amounts,
-        createIncentiveResult,
-      })
-
+      const stakes = await stakeScenario()
       const trader = actors.traderUser0()
 
       await helpers.makeTickGoFlow({
@@ -563,8 +562,6 @@ describe('integration', async () => {
         createIncentiveResult,
       })
 
-      expect(lp0Balance).to.eq(BN('1499999131944544913825'))
-
       /* lp{1,2} provided liquidity for the first half of the duration.
       lp2 provided twice as much liquidity as lp1. */
       const { balance: lp1Balance } = await helpers.unstakeCollectBurnFlow({
@@ -579,13 +576,9 @@ describe('integration', async () => {
         createIncentiveResult,
       })
 
-      /// todo: check difference between two results
-      expect(lp1Balance).to.eq(BN('499998437502752855691'))
-      expect(lp2Balance).to.eq(BN('999990162078202472098'))
-
-      /// the official provided
-      // expect(lp1Balance).to.eq(BN('499996238431987566881'))
-      // expect(lp2Balance).to.eq(BN('999990162082783775671'))
+      // The liquidity is half, and the rewards are also halved
+      expect(lp1Balance.mul(100).div(lp0Balance)).to.closeTo(BN(200), BN(1))
+      expect(lp2Balance.mul(100).div(lp1Balance)).to.closeTo(BN(200), BN(1))
 
       await expect(
         helpers.unstakeCollectBurnFlow({
@@ -594,6 +587,156 @@ describe('integration', async () => {
           createIncentiveResult,
         }),
       ).to.be.reverted
+    })
+
+    it('liquidate by others when out of range', async () => {
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
+      const stakes = await stakeScenario()
+      const trader = actors.traderUser0()
+
+      // Go halfway through
+      await Time.setAndMine(createIncentiveResult.startTime + duration / 2)
+
+      // stakes[0] goes out of range
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 10,
+      })
+
+      await Time.setAndMine((await blockTimestamp()) + 30)
+      const { ownerReward, liquidatorReward } = await context.staker.getRewardInfo(incentiveKey, stakes[0].tokenId)
+
+      await context.staker.connect(trader).unstakeToken(incentiveKey, stakes[0].tokenId)
+
+      const [ownerAccounted, liquidatorAccounted] = await Promise.all([
+        context.staker.rewards(context.rewardToken.address, stakes[0].lp.address),
+        context.staker.rewards(context.rewardToken.address, trader.address),
+      ])
+
+      expect(ownerAccounted).to.closeTo(ownerReward, BNe(1, 15))
+      expect(liquidatorAccounted).to.closeTo(liquidatorReward, BNe(1, 15))
+    })
+
+    it('liquidate by self when out of range', async () => {
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
+      const stakes = await stakeScenario()
+      const trader = actors.traderUser0()
+
+      // Go halfway through
+      await Time.setAndMine(createIncentiveResult.startTime + duration / 2)
+
+      // stakes[0] goes out of range
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 10,
+      })
+
+      await Time.setAndMine((await blockTimestamp()) + 30)
+      const { ownerReward, liquidatorReward } = await context.staker.getRewardInfo(incentiveKey, stakes[0].tokenId)
+
+      await context.staker.connect(stakes[0].lp).unstakeToken(incentiveKey, stakes[0].tokenId)
+
+      const [ownerAccounted] = await Promise.all([
+        context.staker.rewards(context.rewardToken.address, stakes[0].lp.address),
+      ])
+
+      expect(ownerAccounted).to.closeTo(ownerReward.add(liquidatorReward), BNe(1, 15))
+    })
+
+    it('unstake by self when incentive is active and position is in range', async () => {
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
+      const stakes = await stakeScenario()
+      const trader = actors.traderUser0()
+
+      // Go halfway through
+      await Time.setAndMine(createIncentiveResult.startTime + duration / 2)
+
+      // stakes[0] goes out of range
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 10,
+      })
+
+      await Time.setAndMine((await blockTimestamp()) + 30)
+      const { ownerReward, liquidatorReward } = await context.staker.getRewardInfo(incentiveKey, stakes[1].tokenId)
+
+      await context.staker.connect(stakes[1].lp).unstakeToken(incentiveKey, stakes[1].tokenId)
+
+      const [ownerAccounted] = await Promise.all([
+        context.staker.rewards(context.rewardToken.address, stakes[1].lp.address),
+      ])
+
+      expect(liquidatorReward).to.equal(BN(0))
+      expect(ownerAccounted).to.closeTo(ownerReward, BNe(1, 15))
+    })
+
+    it('cannot unstake by other when position is in range', async () => {
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
+      const stakes = await stakeScenario()
+      const trader = actors.traderUser0()
+
+      // Go halfway through
+      await Time.setAndMine(createIncentiveResult.startTime + duration / 2)
+
+      // stakes[0] goes out of range
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 10,
+      })
+
+      await Time.setAndMine((await blockTimestamp()) + 30)
+
+      await expect(context.staker.connect(trader).unstakeToken(incentiveKey, stakes[1].tokenId)).to.be.revertedWith(
+        'CannotLiquidateWhileActive',
+      )
+    })
+
+    it('liquidite with TWAP oracle', async () => {
+      const { helpers, context, createIncentiveResult, midpoint, stakeScenario } = subject
+
+      const incentiveKey = incentiveResultToStakeAdapter(createIncentiveResult)
+      await context.staker
+        .connect(actors.incentiveCreator())
+        .createIncentive(
+          incentiveKey,
+          { ...midIncentiveCfg(midpoint, 20, FeeAmount.MEDIUM), twapSeconds: BN(60) },
+          BN(0),
+        )
+      const trader = actors.traderUser0()
+      await helpers.pool.connect(trader).increaseObservationCardinalityNext(3)
+      const stakes = await stakeScenario()
+
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'down',
+        desiredValue: midpoint - 5,
+      })
+      await Time.setAndMine((await blockTimestamp()) + 60)
+      await helpers.makeTickGoFlow({
+        trader,
+        direction: 'up',
+        desiredValue: midpoint + 20,
+      })
+
+      await Time.setAndMine((await blockTimestamp()) + 30)
+      await expect(context.staker.connect(trader).unstakeToken(incentiveKey, stakes[0].tokenId)).to.be.revertedWith(
+        'CannotLiquidateWhileActive',
+      )
+
+      await Time.setAndMine((await blockTimestamp()) + 20)
+      context.staker.connect(trader).unstakeToken(incentiveKey, stakes[0].tokenId)
     })
   })
 })
